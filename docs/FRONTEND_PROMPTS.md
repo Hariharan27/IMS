@@ -213,9 +213,512 @@ Based on @API_SPEC.md and @ARCHITECTURE.md:
 - Backend User Service - Already implemented and tested
 ```
 
-## Prompt 2: [To be created after Prompt 1 implementation]
+## Prompt 2: Product Management Page Implementation
 
-## Prompt 3: [To be created after Prompt 2 implementation]
+### Business Context
+The Product Management page allows users to manage the product catalog, including creating, viewing, editing, and deleting products. Users need comprehensive product information management with category and supplier relationships.
+
+### Technical Requirements
+- **Framework**: React 18+ with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Material-UI + TailwindCSS
+- **Routing**: React Router v6
+- **HTTP Client**: Axios
+- **Icons**: Lucide React
+- **Forms**: React Hook Form + Zod
+- **JWT**: Authentication integration
+- **File Upload**: Image upload for products
+
+### Implementation Tasks
+1. **Product Listing & Search**
+   - Display paginated product list
+   - Advanced search and filtering
+   - Sort by various fields
+   - Bulk operations
+
+2. **Product CRUD Operations**
+   - Create new products
+   - View product details
+   - Edit existing products
+   - Delete products (soft delete)
+
+3. **Product Form Management**
+   - Comprehensive product form
+   - Category and supplier selection
+   - Image upload functionality
+   - Validation and error handling
+
+4. **Data Integration**
+   - Connect to product API endpoints
+   - Real-time data updates
+   - Error handling and loading states
+   - Optimistic updates
+
+5. **Advanced Features**
+   - Product duplication
+   - Bulk import/export
+   - Product variants
+   - Inventory integration
+
+### Project Structure
+```
+src/
+├── pages/products/
+│   ├── ProductManagement.tsx
+│   ├── ProductDetail.tsx
+│   └── components/
+│       ├── ProductList.tsx
+│       ├── ProductForm.tsx
+│       ├── ProductCard.tsx
+│       ├── ProductFilters.tsx
+│       ├── ProductSearch.tsx
+│       └── ProductBulkActions.tsx
+├── services/
+│   └── productService.ts
+├── types/
+│   └── product.ts
+└── utils/
+    ├── formatters.ts
+    └── validation.ts
+```
+
+### API Integration Requirements
+Reference `@API_SPEC.md` for:
+- **GET /api/products** - List products with pagination and filtering
+- **GET /api/products/{id}** - Get product by ID
+- **POST /api/products** - Create new product
+- **PUT /api/products/{id}** - Update product
+- **DELETE /api/products/{id}** - Soft delete product
+- **GET /api/categories** - Get categories for dropdown
+- **GET /api/suppliers** - Get suppliers for dropdown
+
+Reference `@ARCHITECTURE.md` for:
+- Frontend structure and patterns
+- State management approach
+- Component architecture
+- Service layer design
+- Error handling patterns
+
+Reference `@DATABASE_SCHEMA.md` for:
+- Product entity structure
+- Category relationships
+- Supplier relationships
+- Field validations and constraints
+- Audit trail implementation
+
+### UI/UX Requirements
+- **Design System**: Material-UI + TailwindCSS
+- **Responsive**: Mobile-first approach
+- **Accessibility**: WCAG 2.1 compliance
+- **Performance**: Virtual scrolling for large lists
+- **User Experience**: Intuitive forms and interactions
+- **Data Visualization**: Product status indicators
+
+### Component Requirements
+1. **ProductManagement (Main Page)**
+   - Product list with search/filter
+   - Create/Edit/Delete actions
+   - Bulk operations
+   - Pagination controls
+   - Status indicators
+
+2. **ProductList**
+   - Data table with sorting
+   - Row selection
+   - Action buttons per row
+   - Loading states
+   - Empty states
+
+3. **ProductForm**
+   - Comprehensive form fields
+   - Category/Supplier dropdowns
+   - Image upload
+   - Validation feedback
+   - Save/Cancel actions
+
+4. **ProductCard**
+   - Product information display
+   - Status indicators
+   - Quick actions
+   - Image preview
+
+5. **ProductFilters**
+   - Search by name/SKU/brand
+   - Category filter
+   - Status filter
+   - Price range filter
+   - Clear filters option
+
+6. **ProductSearch**
+   - Real-time search
+   - Search suggestions
+   - Search history
+   - Advanced search options
+
+### State Management
+- **Context**: ProductContext for global state
+- **Local State**: Component-specific state
+- **API State**: Loading, error, success states
+- **Form State**: React Hook Form integration
+- **Cache**: Product data caching
+
+### Form Validation (Zod Schema)
+```typescript
+const productSchema = z.object({
+  sku: z.string().min(1, "SKU is required").max(50),
+  name: z.string().min(1, "Product name is required").max(200),
+  description: z.string().optional(),
+  categoryId: z.number().min(1, "Category is required"),
+  brand: z.string().max(100).optional(),
+  model: z.string().max(100).optional(),
+  weight: z.number().min(0).optional(),
+  dimensions: z.string().max(100).optional(),
+  unitOfMeasure: z.string().default("PCS"),
+  costPrice: z.number().min(0).optional(),
+  sellingPrice: z.number().min(0).optional(),
+  reorderPoint: z.number().min(0).default(0),
+  reorderQuantity: z.number().min(0).default(0),
+  isActive: z.boolean().default(true)
+});
+```
+
+### API Service Methods
+```typescript
+// ProductService methods
+- getProducts(params: ProductFilters): Promise<ApiResponse<ProductListResponse>>
+- getProductById(id: number): Promise<ApiResponse<Product>>
+- createProduct(data: ProductCreateRequest): Promise<ApiResponse<Product>>
+- updateProduct(id: number, data: ProductUpdateRequest): Promise<ApiResponse<Product>>
+- deleteProduct(id: number): Promise<ApiResponse<void>>
+- getCategories(): Promise<ApiResponse<Category[]>>
+- getSuppliers(): Promise<ApiResponse<Supplier[]>>
+```
+
+### TypeScript Interfaces
+```typescript
+interface Product {
+  id: number;
+  sku: string;
+  name: string;
+  description?: string;
+  category: Category;
+  brand?: string;
+  model?: string;
+  weight?: number;
+  dimensions?: string;
+  unitOfMeasure: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProductFilters {
+  page?: number;
+  size?: number;
+  search?: string;
+  categoryId?: number;
+  isActive?: boolean;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+```
+
+### Success Criteria
+- [ ] Product list displays with pagination
+- [ ] Search and filtering work correctly
+- [ ] Create product form validates properly
+- [ ] Edit product pre-fills form correctly
+- [ ] Delete product shows confirmation
+- [ ] Category and supplier dropdowns load
+- [ ] Image upload functionality works
+- [ ] Responsive design on all devices
+- [ ] Error handling implemented
+- [ ] Loading states shown
+- [ ] Accessibility features included
+- [ ] Bulk operations work
+- [ ] Real-time search implemented
+
+### Testing Requirements
+- **Unit Tests**: Component testing with Jest
+- **Integration Tests**: API integration testing
+- **E2E Tests**: User workflow testing with Cypress
+- **Form Validation Tests**: Zod schema validation
+- **Error Handling Tests**: API error scenarios
+
+### Deliverables
+1. Complete Product Management page
+2. All required components (ProductList, ProductForm, etc.)
+3. ProductService with full API integration
+4. TypeScript interfaces and types
+5. Zod validation schemas
+6. Error handling and loading states
+7. Responsive design implementation
+8. Accessibility features (ARIA labels, keyboard navigation)
+9. Unit tests for components
+10. Integration tests for API calls
+11. Form validation and error display
+12. Image upload functionality
+13. Bulk operations implementation
+14. Real-time search functionality
+
+## Prompt 3: Dashboard & Analytics Implementation
+```
+
+## Prompt 3: Product Management Page Implementation
+
+### Business Context
+The Product Management page allows users to manage the product catalog, including creating, viewing, editing, and deleting products. Users need comprehensive product information management with category and supplier relationships.
+
+### Technical Requirements
+- **Framework**: React 18+ with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Material-UI + TailwindCSS
+- **Routing**: React Router v6
+- **HTTP Client**: Axios
+- **Icons**: Lucide React
+- **Forms**: React Hook Form + Zod
+- **JWT**: Authentication integration
+- **File Upload**: Image upload for products
+
+### Implementation Tasks
+1. **Product Listing & Search**
+   - Display paginated product list
+   - Advanced search and filtering
+   - Sort by various fields
+   - Bulk operations
+
+2. **Product CRUD Operations**
+   - Create new products
+   - View product details
+   - Edit existing products
+   - Delete products (soft delete)
+
+3. **Product Form Management**
+   - Comprehensive product form
+   - Category and supplier selection
+   - Image upload functionality
+   - Validation and error handling
+
+4. **Data Integration**
+   - Connect to product API endpoints
+   - Real-time data updates
+   - Error handling and loading states
+   - Optimistic updates
+
+5. **Advanced Features**
+   - Product duplication
+   - Bulk import/export
+   - Product variants
+   - Inventory integration
+
+### Project Structure
+```
+src/
+├── pages/products/
+│   ├── ProductManagement.tsx
+│   ├── ProductDetail.tsx
+│   └── components/
+│       ├── ProductList.tsx
+│       ├── ProductForm.tsx
+│       ├── ProductCard.tsx
+│       ├── ProductFilters.tsx
+│       ├── ProductSearch.tsx
+│       └── ProductBulkActions.tsx
+├── services/
+│   └── productService.ts
+├── types/
+│   └── product.ts
+└── utils/
+    ├── formatters.ts
+    └── validation.ts
+```
+
+### API Integration Requirements
+Reference `@API_SPEC.md` for:
+- **GET /api/products** - List products with pagination and filtering
+- **GET /api/products/{id}** - Get product by ID
+- **POST /api/products** - Create new product
+- **PUT /api/products/{id}** - Update product
+- **DELETE /api/products/{id}** - Soft delete product
+- **GET /api/categories** - Get categories for dropdown
+- **GET /api/suppliers** - Get suppliers for dropdown
+
+Reference `@ARCHITECTURE.md` for:
+- Frontend structure and patterns
+- State management approach
+- Component architecture
+- Service layer design
+- Error handling patterns
+
+Reference `@DATABASE_SCHEMA.md` for:
+- Product entity structure
+- Category relationships
+- Supplier relationships
+- Field validations and constraints
+- Audit trail implementation
+
+### UI/UX Requirements
+- **Design System**: Material-UI + TailwindCSS
+- **Responsive**: Mobile-first approach
+- **Accessibility**: WCAG 2.1 compliance
+- **Performance**: Virtual scrolling for large lists
+- **User Experience**: Intuitive forms and interactions
+- **Data Visualization**: Product status indicators
+
+### Component Requirements
+1. **ProductManagement (Main Page)**
+   - Product list with search/filter
+   - Create/Edit/Delete actions
+   - Bulk operations
+   - Pagination controls
+   - Status indicators
+
+2. **ProductList**
+   - Data table with sorting
+   - Row selection
+   - Action buttons per row
+   - Loading states
+   - Empty states
+
+3. **ProductForm**
+   - Comprehensive form fields
+   - Category/Supplier dropdowns
+   - Image upload
+   - Validation feedback
+   - Save/Cancel actions
+
+4. **ProductCard**
+   - Product information display
+   - Status indicators
+   - Quick actions
+   - Image preview
+
+5. **ProductFilters**
+   - Search by name/SKU/brand
+   - Category filter
+   - Status filter
+   - Price range filter
+   - Clear filters option
+
+6. **ProductSearch**
+   - Real-time search
+   - Search suggestions
+   - Search history
+   - Advanced search options
+
+### State Management
+- **Context**: ProductContext for global state
+- **Local State**: Component-specific state
+- **API State**: Loading, error, success states
+- **Form State**: React Hook Form integration
+- **Cache**: Product data caching
+
+### Form Validation (Zod Schema)
+```typescript
+const productSchema = z.object({
+  sku: z.string().min(1, "SKU is required").max(50),
+  name: z.string().min(1, "Product name is required").max(200),
+  description: z.string().optional(),
+  categoryId: z.number().min(1, "Category is required"),
+  brand: z.string().max(100).optional(),
+  model: z.string().max(100).optional(),
+  weight: z.number().min(0).optional(),
+  dimensions: z.string().max(100).optional(),
+  unitOfMeasure: z.string().default("PCS"),
+  costPrice: z.number().min(0).optional(),
+  sellingPrice: z.number().min(0).optional(),
+  reorderPoint: z.number().min(0).default(0),
+  reorderQuantity: z.number().min(0).default(0),
+  isActive: z.boolean().default(true)
+});
+```
+
+### API Service Methods
+```typescript
+// ProductService methods
+- getProducts(params: ProductFilters): Promise<ApiResponse<ProductListResponse>>
+- getProductById(id: number): Promise<ApiResponse<Product>>
+- createProduct(data: ProductCreateRequest): Promise<ApiResponse<Product>>
+- updateProduct(id: number, data: ProductUpdateRequest): Promise<ApiResponse<Product>>
+- deleteProduct(id: number): Promise<ApiResponse<void>>
+- getCategories(): Promise<ApiResponse<Category[]>>
+- getSuppliers(): Promise<ApiResponse<Supplier[]>>
+```
+
+### TypeScript Interfaces
+```typescript
+interface Product {
+  id: number;
+  sku: string;
+  name: string;
+  description?: string;
+  category: Category;
+  brand?: string;
+  model?: string;
+  weight?: number;
+  dimensions?: string;
+  unitOfMeasure: string;
+  costPrice?: number;
+  sellingPrice?: number;
+  reorderPoint: number;
+  reorderQuantity: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProductFilters {
+  page?: number;
+  size?: number;
+  search?: string;
+  categoryId?: number;
+  isActive?: boolean;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+```
+
+### Success Criteria
+- [ ] Product list displays with pagination
+- [ ] Search and filtering work correctly
+- [ ] Create product form validates properly
+- [ ] Edit product pre-fills form correctly
+- [ ] Delete product shows confirmation
+- [ ] Category and supplier dropdowns load
+- [ ] Image upload functionality works
+- [ ] Responsive design on all devices
+- [ ] Error handling implemented
+- [ ] Loading states shown
+- [ ] Accessibility features included
+- [ ] Bulk operations work
+- [ ] Real-time search implemented
+
+### Testing Requirements
+- **Unit Tests**: Component testing with Jest
+- **Integration Tests**: API integration testing
+- **E2E Tests**: User workflow testing with Cypress
+- **Form Validation Tests**: Zod schema validation
+- **Error Handling Tests**: API error scenarios
+
+### Deliverables
+1. Complete Product Management page
+2. All required components (ProductList, ProductForm, etc.)
+3. ProductService with full API integration
+4. TypeScript interfaces and types
+5. Zod validation schemas
+6. Error handling and loading states
+7. Responsive design implementation
+8. Accessibility features (ARIA labels, keyboard navigation)
+9. Unit tests for components
+10. Integration tests for API calls
+11. Form validation and error display
+12. Image upload functionality
+13. Bulk operations implementation
+14. Real-time search functionality
 
 ## Prompt 4: [To be created after Prompt 3 implementation]
 

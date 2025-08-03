@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                 .requestMatchers("/api/purchase-orders/**").hasAnyRole("ADMIN", "MANAGER")
                 .requestMatchers("/api/alerts/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
+                .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "MANAGER", "STAFF")
                 .anyRequest().authenticated()
             )
             .httpBasic(AbstractHttpConfigurer::disable)

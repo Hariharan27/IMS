@@ -7,8 +7,6 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
-    // Handle client-side routing
-    historyApiFallback: true,
   },
   // Build configuration for production
   build: {

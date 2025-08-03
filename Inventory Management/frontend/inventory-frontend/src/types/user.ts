@@ -11,11 +11,13 @@ export interface User {
   updatedAt: string;
 }
 
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  STAFF = 'STAFF'
-}
+export const UserRole = {
+  ADMIN: 'ADMIN',
+  MANAGER: 'MANAGER',
+  STAFF: 'STAFF'
+} as const;
+
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 export interface UserListResponse {
   success: boolean;

@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { DashboardProvider } from './context/DashboardContext';
 import theme from './theme/theme';
 import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
 import Dashboard from './pages/dashboard/Dashboard';
+import ProductManagement from './pages/products/ProductManagement';
+import InventoryManagement from './pages/inventory/InventoryManagement';
+import AlertManagement from './pages/alerts/AlertManagement';
 import UserManagement from './pages/users/UserManagement';
 import UserProfile from './pages/users/UserProfile';
 
@@ -67,6 +71,33 @@ const AppContent: React.FC = () => {
         />
         
         <Route 
+          path="/products" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
+              <ProductManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/inventory" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER', 'STAFF']}>
+              <InventoryManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/alerts" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER', 'STAFF']}>
+              <AlertManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
           path="/users" 
           element={
             <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
@@ -106,7 +137,9 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <AppContent />
+        <DashboardProvider>
+          <AppContent />
+        </DashboardProvider>
       </AuthProvider>
     </ThemeProvider>
   );
