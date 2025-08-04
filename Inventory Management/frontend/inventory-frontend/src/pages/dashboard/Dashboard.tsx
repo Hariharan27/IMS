@@ -173,13 +173,28 @@ const Dashboard: React.FC = () => {
             data={categoryDistribution}
             loading={isLoading}
           />
-          <StockMovementChart
+          {/* StockMovementChart temporarily hidden */}
+          {/* <StockMovementChart
             data={stockMovements}
             loading={isLoading}
-          />
+          /> */}
           <WarehouseChart
             data={warehouseDistribution}
             loading={isLoading}
+          />
+        </Box>
+
+        {/* Recent Activities and Top Products */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, 
+          gap: { xs: 2, sm: 3 },
+          mb: 4
+        }}>
+          <ActivityFeed
+            activities={recentActivities}
+            loading={isLoading}
+            maxItems={8}
           />
           <TopProductsChart
             data={topProducts}
@@ -188,23 +203,9 @@ const Dashboard: React.FC = () => {
           />
         </Box>
 
-        {/* Activity Feed and Alerts */}
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, 
-          gap: { xs: 2, sm: 3 },
-          mb: 2
-        }}>
-          <ActivityFeed
-            activities={recentActivities}
-            loading={isLoading}
-            maxItems={8}
-          />
-          <AlertPanel
-            alerts={alerts}
-            loading={isLoading}
-            onMarkAsRead={markAlertAsRead}
-          />
+        {/* Recent Alerts - Full Width */}
+        <Box sx={{ mb: 2 }}>
+          <AlertPanel />
         </Box>
       </Box>
     </MainLayout>

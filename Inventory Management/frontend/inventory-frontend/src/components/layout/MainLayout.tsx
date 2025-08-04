@@ -73,10 +73,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     navigate('/profile');
   };
 
-  const handleSettingsClick = () => {
-    handleProfileMenuClose();
-    navigate('/settings');
-  };
+  // Settings handler removed
 
   const unreadAlerts = alerts.filter(alert => !alert.read).length;
 
@@ -300,12 +297,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <AccountCircle fontSize="small" />
           </ListItemIcon>
           Profile
-        </MenuItem>
-        <MenuItem onClick={handleSettingsClick}>
-          <ListItemIcon>
-            <Settings fontSize="small" />
-          </ListItemIcon>
-          Settings
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout}>

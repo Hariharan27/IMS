@@ -351,4 +351,118 @@ public class AlertService {
     public long getUrgentAlertCount() {
         return alertRepository.findUrgentAlerts().size();
     }
+    
+    // Real-time alert generation methods
+    public void checkAndCreateLowStockAlert(Inventory inventory) {
+        if (inventory.getQuantityAvailable() <= inventory.getProduct().getReorderPoint() && 
+            inventory.getQuantityAvailable() > 0) {
+            createLowStockAlert(inventory);
+        } else {
+            // Auto-resolve low stock alerts if stock is replenished
+            resolveLowStockAlerts(inventory);
+        }
+    }
+    
+    public void checkAndCreateOutOfStockAlert(Inventory inventory) {
+        if (inventory.getQuantityAvailable() == 0) {
+            createOutOfStockAlert(inventory);
+        } else {
+            // Auto-resolve out of stock alerts if stock is replenished
+            resolveOutOfStockAlerts(inventory);
+        }
+    }
+    
+    public void checkAndCreatePurchaseOrderAlerts(PurchaseOrder order) {
+        LocalDate today = LocalDate.now();
+        
+        if (order.getStatus() == PurchaseOrder.OrderStatus.APPROVED) {
+            if (order.getExpectedDeliveryDate().equals(today)) {
+                createPurchaseOrderDueAlert(order);
+            } else if (order.getExpectedDeliveryDate().isBefore(today)) {
+                createPurchaseOrderOverdueAlert(order);
+            } else {
+                // Auto-resolve due/overdue alerts if delivery date is in the future
+                resolvePurchaseOrderAlerts(order);
+            }
+        }
+    }
+    
+    public void createInventoryAdjustmentAlert(Inventory inventory, String adjustmentType, int quantityChanged, Long userId) {
+        AlertRequest request = new AlertRequest();
+        request.setAlertType(Alert.AlertType.INVENTORY_ADJUSTMENT);
+        request.setSeverity(Alert.Severity.MEDIUM);
+        request.setPriority(Alert.Priority.NORMAL);
+        request.setTitle("Inventory Adjustment: " + inventory.getProduct().getName());
+        request.setMessage("Inventory adjusted for " + inventory.getProduct().getName() + 
+                ". Type: " + adjustmentType + ", Quantity: " + quantityChanged + 
+                ", New Available: " + inventory.getQuantityAvailable());
+        request.setReferenceType(Alert.ReferenceType.INVENTORY);
+        request.setReferenceId(inventory.getId());
+        request.setNotes("Automatically generated inventory adjustment alert");
+        
+        createAlert(request, userId);
+    }
+    
+    // Auto-resolve methods
+    private void resolveLowStockAlerts(Inventory inventory) {
+        List<Alert> activeLowStockAlerts = alertRepository.findByReferenceTypeAndReferenceIdAndAlertTypeAndStatusOrderByTriggeredAtDesc(
+                Alert.ReferenceType.INVENTORY, inventory.getId(), Alert.AlertType.LOW_STOCK, Alert.AlertStatus.ACTIVE);
+        
+        for (Alert alert : activeLowStockAlerts) {
+            alert.setStatus(Alert.AlertStatus.RESOLVED);
+            alert.setResolvedAt(LocalDateTime.now());
+            alert.setNotes("Auto-resolved: Stock replenished above reorder point");
+            alertRepository.save(alert);
+            log.info("Auto-resolved low stock alert for inventory ID: {}", inventory.getId());
+        }
+    }
+    
+    private void resolveOutOfStockAlerts(Inventory inventory) {
+        List<Alert> activeOutOfStockAlerts = alertRepository.findByReferenceTypeAndReferenceIdAndAlertTypeAndStatusOrderByTriggeredAtDesc(
+                Alert.ReferenceType.INVENTORY, inventory.getId(), Alert.AlertType.OUT_OF_STOCK, Alert.AlertStatus.ACTIVE);
+        
+        for (Alert alert : activeOutOfStockAlerts) {
+            alert.setStatus(Alert.AlertStatus.RESOLVED);
+            alert.setResolvedAt(LocalDateTime.now());
+            alert.setNotes("Auto-resolved: Stock replenished");
+            alertRepository.save(alert);
+            log.info("Auto-resolved out of stock alert for inventory ID: {}", inventory.getId());
+        }
+    }
+    
+    private void resolvePurchaseOrderAlerts(PurchaseOrder order) {
+        List<Alert> activePOAlerts = alertRepository.findByReferenceTypeAndReferenceIdAndStatusOrderByTriggeredAtDesc(
+                Alert.ReferenceType.PURCHASE_ORDER, order.getId(), Alert.AlertStatus.ACTIVE);
+        
+        for (Alert alert : activePOAlerts) {
+            if (alert.getAlertType() == Alert.AlertType.PURCHASE_ORDER_DUE || 
+                alert.getAlertType() == Alert.AlertType.PURCHASE_ORDER_OVERDUE) {
+                alert.setStatus(Alert.AlertStatus.RESOLVED);
+                alert.setResolvedAt(LocalDateTime.now());
+                alert.setNotes("Auto-resolved: Purchase order status updated");
+                alertRepository.save(alert);
+                log.info("Auto-resolved purchase order alert for PO ID: {}", order.getId());
+            }
+        }
+    }
+    
+    // Comprehensive real-time alert check
+    public void performRealTimeAlertCheck() {
+        log.info("Performing real-time alert check");
+        
+        // Check inventory alerts
+        List<Inventory> allInventory = inventoryRepository.findAll();
+        for (Inventory inventory : allInventory) {
+            checkAndCreateLowStockAlert(inventory);
+            checkAndCreateOutOfStockAlert(inventory);
+        }
+        
+        // Check purchase order alerts
+        List<PurchaseOrder> approvedOrders = purchaseOrderRepository.findByStatusOrderByOrderDateDesc(PurchaseOrder.OrderStatus.APPROVED);
+        for (PurchaseOrder order : approvedOrders) {
+            checkAndCreatePurchaseOrderAlerts(order);
+        }
+        
+        log.info("Real-time alert check completed");
+    }
 } 

@@ -9,7 +9,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/products")
@@ -20,15 +23,58 @@ public class ProductController {
     private final ProductService productService;
     
     @GetMapping
-    public ResponseEntity<?> getAllProducts() {
-        log.info("GET /api/products - Fetching all products");
+    public ResponseEntity<?> getAllProducts(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(defaultValue = "asc") String sortOrder) {
+        
+        log.info("GET /api/products - Fetching products with filters: search={}, categoryId={}, isActive={}, page={}, size={}", 
+                search, categoryId, isActive, page, size);
+        
         try {
-            List<ProductResponse> products = productService.getAllProducts();
+            List<ProductResponse> products;
+            
+            // Apply filters
+            if (search != null && !search.trim().isEmpty()) {
+                products = productService.searchProducts(search);
+            } else if (categoryId != null) {
+                products = productService.getProductsByCategory(categoryId);
+            } else {
+                products = productService.getAllProducts();
+            }
+            
+            // Apply status filter if provided
+            if (isActive != null) {
+                products = products.stream()
+                        .filter(product -> product.getIsActive().equals(isActive))
+                        .collect(Collectors.toList());
+            }
+            
+            // Apply pagination
+            int totalElements = products.size();
+            int totalPages = (int) Math.ceil((double) totalElements / size);
+            int startIndex = page * size;
+            int endIndex = Math.min(startIndex + size, totalElements);
+            
+            List<ProductResponse> paginatedProducts = products.subList(startIndex, endIndex);
+            
+            // Create pagination response
+            Map<String, Object> paginationData = new HashMap<>();
+            paginationData.put("content", paginatedProducts);
+            paginationData.put("totalElements", totalElements);
+            paginationData.put("totalPages", totalPages);
+            paginationData.put("currentPage", page);
+            paginationData.put("size", size);
+            
             return ResponseEntity.ok(new ApiResponse<>(
-                    products,
+                    paginationData,
                     true,
                     "Products retrieved successfully",
-                    products.size()
+                    totalElements
             ));
         } catch (Exception e) {
             log.error("Error fetching products: {}", e.getMessage());

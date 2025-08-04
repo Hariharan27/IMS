@@ -127,4 +127,12 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     
     // Find alerts by reference type and status
     List<Alert> findByReferenceTypeAndStatusOrderByTriggeredAtDesc(Alert.ReferenceType referenceType, Alert.AlertStatus status);
+    
+    // Find alerts by reference type, reference ID, alert type and status
+    List<Alert> findByReferenceTypeAndReferenceIdAndAlertTypeAndStatusOrderByTriggeredAtDesc(
+            Alert.ReferenceType referenceType, Long referenceId, Alert.AlertType alertType, Alert.AlertStatus status);
+    
+    // Find alerts by reference type, reference ID and status
+    List<Alert> findByReferenceTypeAndReferenceIdAndStatusOrderByTriggeredAtDesc(
+            Alert.ReferenceType referenceType, Long referenceId, Alert.AlertStatus status);
 } 

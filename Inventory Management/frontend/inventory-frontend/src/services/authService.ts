@@ -80,6 +80,15 @@ export class AuthService {
     }
   }
 
+  static async getUserByUsername(username: string): Promise<ApiResponse<User>> {
+    try {
+      const response = await apiGet<ApiResponse<User>>(`/users/username/${username}`);
+      return response;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
   static async updateUser(id: number, userData: UserUpdateRequest): Promise<UserUpdateResponse> {
     try {
       const response = await apiPut<UserUpdateResponse>(`/users/${id}`, userData);

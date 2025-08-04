@@ -26,9 +26,9 @@ export interface Alert {
   updatedAt: string;
   createdBy: User;
   updatedBy: User | null;
-  active: boolean;
-  resolved: boolean;
-  unresolved: boolean;
+  isActive: boolean;
+  isResolved: boolean;
+  isUnresolved: boolean;
 }
 
 // Alert request interface for creating alerts

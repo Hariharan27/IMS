@@ -187,13 +187,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
                   }
                 />
                 
-                {activity.link && (
-                  <Tooltip title="View details">
-                    <IconButton size="small" sx={{ color: 'text.secondary' }}>
-                      <ArrowForward fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
+                {/* Forward icon hidden as requested */}
               </ListItem>
             ))}
           </List>

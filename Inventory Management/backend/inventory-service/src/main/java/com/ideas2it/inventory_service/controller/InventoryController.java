@@ -248,6 +248,42 @@ public class InventoryController {
         }
     }
     
+    @PostMapping("/{id}/adjust")
+    public ResponseEntity<?> adjustInventory(
+            @PathVariable Long id,
+            @RequestBody InventoryAdjustmentRequest request) {
+        log.info("POST /api/inventory/{}/adjust - Adjusting inventory", id);
+        try {
+            InventoryResponse inventory = inventoryService.adjustInventory(
+                    id, request.getQuantityChange(), request.getAdjustmentType(), 1L); // TODO: Get from JWT
+            
+            return ResponseEntity.ok(new ApiResponse<>(
+                    inventory,
+                    true,
+                    "Inventory adjusted successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error adjusting inventory with ID {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                    null,
+                    false,
+                    "Error adjusting inventory: " + e.getMessage()
+            ));
+        }
+    }
+    
+    // Helper class for inventory adjustment requests
+    public static class InventoryAdjustmentRequest {
+        private int quantityChange;
+        private String adjustmentType;
+        
+        // Getters and setters
+        public int getQuantityChange() { return quantityChange; }
+        public void setQuantityChange(int quantityChange) { this.quantityChange = quantityChange; }
+        public String getAdjustmentType() { return adjustmentType; }
+        public void setAdjustmentType(String adjustmentType) { this.adjustmentType = adjustmentType; }
+    }
+    
     // Helper class for consistent API responses
     public static class ApiResponse<T> {
         private T data;

@@ -10,6 +10,7 @@ import com.ideas2it.inventory_service.repository.InventoryRepository;
 import com.ideas2it.inventory_service.repository.ProductRepository;
 import com.ideas2it.inventory_service.repository.UserRepository;
 import com.ideas2it.inventory_service.repository.WarehouseRepository;
+import com.ideas2it.inventory_service.service.AlertService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class InventoryService {
     private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
     private final UserRepository userRepository;
+    private final AlertService alertService;
     
     public List<InventoryResponse> getAllInventory() {
         log.info("Fetching all inventory");
@@ -154,6 +156,10 @@ public class InventoryService {
         Inventory updatedInventory = inventoryRepository.save(inventory);
         log.info("Inventory updated successfully with ID: {}", updatedInventory.getId());
         
+        // Trigger real-time alert checks
+        alertService.checkAndCreateLowStockAlert(updatedInventory);
+        alertService.checkAndCreateOutOfStockAlert(updatedInventory);
+        
         return InventoryResponse.fromInventory(updatedInventory);
     }
     
@@ -183,5 +189,38 @@ public class InventoryService {
     
     public long getInventoryCountByWarehouse(Long warehouseId) {
         return inventoryRepository.countByWarehouseId(warehouseId);
+    }
+    
+    public InventoryResponse adjustInventory(Long id, int quantityChange, String adjustmentType, Long currentUserId) {
+        log.info("Adjusting inventory with ID: {} by quantity: {} for type: {}", id, quantityChange, adjustmentType);
+        
+        Inventory inventory = inventoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Inventory not found with ID: " + id));
+        
+        // Get current user for audit
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("Current user not found"));
+        
+        // Calculate new quantities
+        int newQuantityOnHand = inventory.getQuantityOnHand() + quantityChange;
+        if (newQuantityOnHand < 0) {
+            throw new RuntimeException("Cannot reduce inventory below zero");
+        }
+        
+        // Update inventory
+        inventory.setQuantityOnHand(newQuantityOnHand);
+        inventory.setUpdatedBy(currentUser);
+        
+        Inventory updatedInventory = inventoryRepository.save(inventory);
+        log.info("Inventory adjusted successfully with ID: {}", updatedInventory.getId());
+        
+        // Create inventory adjustment alert
+        alertService.createInventoryAdjustmentAlert(updatedInventory, adjustmentType, quantityChange, currentUserId);
+        
+        // Trigger real-time alert checks
+        alertService.checkAndCreateLowStockAlert(updatedInventory);
+        alertService.checkAndCreateOutOfStockAlert(updatedInventory);
+        
+        return InventoryResponse.fromInventory(updatedInventory);
     }
 } 
