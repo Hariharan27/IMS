@@ -44,8 +44,10 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import supplierService, { SupplierCreateRequest, SupplierUpdateRequest } from '../../services/supplierService';
+import supplierService from '../../services/supplierService';
+import type { SupplierCreateRequest, SupplierUpdateRequest } from '../../types/supplier';
 import type { Supplier } from '../../types/purchaseOrder';
+import MainLayout from '../../components/layout/MainLayout';
 
 // Validation schemas
 const supplierCreateSchema = z.object({
@@ -237,7 +239,8 @@ const SupplierManagement: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <MainLayout>
+      <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Supplier Management
@@ -855,7 +858,8 @@ const SupplierManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+      </Box>
+    </MainLayout>
   );
 };
 
