@@ -374,7 +374,7 @@ public class DashboardService {
     private double calculateOrderFulfillment() {
         // Calculate order fulfillment rate
         long totalOrders = purchaseOrderRepository.count();
-        long fulfilledOrders = purchaseOrderRepository.countByStatus(PurchaseOrder.OrderStatus.RECEIVED);
+        long fulfilledOrders = purchaseOrderRepository.countByStatus(PurchaseOrder.OrderStatus.FULLY_RECEIVED);
         return totalOrders > 0 ? (double) fulfilledOrders / totalOrders * 100 : 0;
     }
 

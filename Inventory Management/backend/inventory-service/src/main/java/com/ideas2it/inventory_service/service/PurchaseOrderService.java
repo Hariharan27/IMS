@@ -301,7 +301,9 @@ public class PurchaseOrderService {
         // Check if all items are fully received
         boolean allItemsReceived = order.getItems().stream().allMatch(PurchaseOrderItem::isFullyReceived);
         if (allItemsReceived) {
-            order.setStatus(PurchaseOrder.OrderStatus.RECEIVED);
+            order.setStatus(PurchaseOrder.OrderStatus.FULLY_RECEIVED);
+        } else {
+            order.setStatus(PurchaseOrder.OrderStatus.PARTIALLY_RECEIVED);
         }
         
         order.setUpdatedBy(currentUser);
