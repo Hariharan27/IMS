@@ -147,8 +147,15 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
                 
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          wordBreak: 'break-word',
+                          lineHeight: 1.3,
+                        }}
+                      >
                         {activity.title}
                       </Typography>
                       {getSeverityChip(activity.severity)}
@@ -156,10 +163,17 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({
                   }
                   secondary={
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{
+                          wordBreak: 'break-word',
+                          lineHeight: 1.4,
+                        }}
+                      >
                         {activity.description}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5, flexWrap: 'wrap' }}>
                         <Typography variant="caption" color="text.secondary">
                           {formatTimestamp(activity.timestamp)}
                         </Typography>

@@ -104,6 +104,9 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
           transform: 'translateY(-2px)',
           boxShadow: `0 8px 25px ${metric.color}30`,
         } : {},
+        '&:active': onClick ? {
+          transform: 'translateY(0px)',
+        } : {},
       }}
       onClick={onClick}
     >
@@ -126,7 +129,11 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
                 size="small" 
                 sx={{ 
                   color: 'text.secondary',
-                  '&:hover': { color: metric.color },
+                  '&:hover': { 
+                    color: metric.color,
+                    transform: 'translateX(2px)',
+                  },
+                  transition: 'all 0.2s ease',
                 }}
               >
                 <ArrowForward fontSize="small" />
@@ -141,7 +148,9 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
             fontWeight: 'bold',
             color: 'text.primary',
             mb: 1,
-            fontSize: '1.75rem',
+            fontSize: { xs: '1.5rem', sm: '1.75rem' },
+            wordBreak: 'break-word',
+            lineHeight: 1.2,
           }}
         >
           {formatValue(metric.value)}
@@ -153,18 +162,23 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
             color: 'text.secondary',
             mb: 2,
             fontWeight: 500,
+            wordBreak: 'break-word',
+            lineHeight: 1.4,
+            minHeight: '2.8em', // Ensure consistent height for titles
           }}
         >
           {metric.title}
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
           {getChangeIcon(metric.changeType)}
           <Typography 
             variant="caption" 
             sx={{ 
               color: getChangeColor(metric.change),
               fontWeight: 600,
+              wordBreak: 'break-word',
+              lineHeight: 1.3,
             }}
           >
             {formatChange(metric.change)} from last month

@@ -5,6 +5,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboard } from '../../context/DashboardContext';
 import MainLayout from '../../components/layout/MainLayout';
@@ -19,6 +20,7 @@ import TopProductsChart from '../../components/dashboard/charts/TopProductsChart
 import type { MetricCard as MetricCardType } from '../../types/dashboard';
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     metrics, 
@@ -100,13 +102,30 @@ const Dashboard: React.FC = () => {
 
   return (
     <MainLayout>
-      <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
+      <Box sx={{ maxWidth: '1400px', mx: 'auto', px: { xs: 2, sm: 3 } }}>
         {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h3" sx={{ fontWeight: 'bold', color: 'text.primary', mb: 1 }}>
+        <Box sx={{ mb: 4, mt: 2 }}>
+          <Typography 
+            variant="h3" 
+            sx={{ 
+              fontWeight: 'bold', 
+              color: 'text.primary', 
+              mb: 1,
+              fontSize: { xs: '1.75rem', sm: '2.125rem', md: '3rem' },
+              wordBreak: 'break-word',
+              lineHeight: 1.2,
+            }}
+          >
             Welcome back, {user?.firstName || user?.username}!
           </Typography>
-          <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              color: 'text.secondary',
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              wordBreak: 'break-word',
+            }}
+          >
             Here's what's happening with your inventory today.
           </Typography>
         </Box>
@@ -130,6 +149,7 @@ const Dashboard: React.FC = () => {
               key={metric.id}
               metric={metric}
               loading={isLoading}
+              onClick={() => metric.link && navigate(metric.link)}
             />
           ))}
         </Box>
@@ -146,7 +166,7 @@ const Dashboard: React.FC = () => {
         <Box sx={{ 
           display: 'grid', 
           gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, 1fr)' }, 
-          gap: 3, 
+          gap: { xs: 2, sm: 3 }, 
           mb: 4 
         }}>
           <InventoryChart
@@ -172,7 +192,8 @@ const Dashboard: React.FC = () => {
         <Box sx={{ 
           display: 'grid', 
           gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' }, 
-          gap: 3 
+          gap: { xs: 2, sm: 3 },
+          mb: 2
         }}>
           <ActivityFeed
             activities={recentActivities}

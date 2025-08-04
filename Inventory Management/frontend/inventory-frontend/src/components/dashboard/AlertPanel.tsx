@@ -172,8 +172,15 @@ const AlertPanel: React.FC<AlertPanelProps> = ({
                 
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          wordBreak: 'break-word',
+                          lineHeight: 1.3,
+                        }}
+                      >
                         {alert.title}
                       </Typography>
                       {getSeverityChip(alert.severity)}
@@ -189,7 +196,14 @@ const AlertPanel: React.FC<AlertPanelProps> = ({
                   }
                   secondary={
                     <Box>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{
+                          wordBreak: 'break-word',
+                          lineHeight: 1.4,
+                        }}
+                      >
                         {alert.message}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>

@@ -83,7 +83,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         
         <Box sx={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gridTemplateColumns: { xs: 'repeat(auto-fit, minmax(180px, 1fr))', sm: 'repeat(auto-fit, minmax(200px, 1fr))' }, 
           gap: 2 
         }}>
           {filteredActions.map((action) => (
@@ -92,7 +92,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
               variant="outlined"
               onClick={() => handleActionClick(action)}
               sx={{
-                height: 80,
+                height: { xs: 100, sm: 120 },
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -100,6 +100,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
                 gap: 1,
                 borderColor: action.color,
                 color: action.color,
+                padding: { xs: 1, sm: 2 },
                 '&:hover': {
                   backgroundColor: `${action.color}10`,
                   borderColor: action.color,
@@ -107,13 +108,30 @@ const QuickActions: React.FC<QuickActionsProps> = ({
                 transition: 'all 0.3s ease',
               }}
             >
-              <Typography variant="h4" sx={{ fontSize: '2rem' }}>
+              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                 {getIcon(action.icon)}
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  fontWeight: 600,
+                  wordBreak: 'break-word',
+                  lineHeight: 1.3,
+                  textAlign: 'center',
+                }}
+              >
                 {action.title}
               </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                sx={{ 
+                  textAlign: 'center',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.2,
+                  display: { xs: 'none', sm: 'block' }, // Hide description on mobile
+                }}
+              >
                 {action.description}
               </Typography>
             </Button>
