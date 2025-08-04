@@ -2,6 +2,7 @@ package com.ideas2it.inventory_service.controller;
 
 import com.ideas2it.inventory_service.dto.UserResponse;
 import com.ideas2it.inventory_service.dto.UserUpdateRequest;
+import com.ideas2it.inventory_service.dto.UserRegistrationRequest;
 import com.ideas2it.inventory_service.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -104,6 +105,25 @@ public class UserController {
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
             result.put("message", "User updated successfully");
+            result.put("data", user);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", false);
+            result.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(result);
+        }
+    }
+    
+    @PostMapping
+    public ResponseEntity<Map<String, Object>> createUser(
+            @RequestBody UserRegistrationRequest request) {
+        try {
+            UserResponse user = userService.createUser(request);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "User created successfully");
             result.put("data", user);
             return ResponseEntity.ok(result);
         } catch (Exception e) {

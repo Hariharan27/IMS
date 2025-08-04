@@ -98,6 +98,15 @@ export class AuthService {
     }
   }
 
+  static async createUser(userData: RegisterRequest): Promise<ApiResponse<User>> {
+    try {
+      const response = await apiPost<ApiResponse<User>>('/users', userData);
+      return response;
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
   // Token management
   static getToken(): string | null {
     return localStorage.getItem('authToken');

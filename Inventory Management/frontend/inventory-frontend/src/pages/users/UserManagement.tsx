@@ -60,7 +60,18 @@ const userUpdateSchema = z.object({
   isActive: z.boolean(),
 });
 
+// User creation form schema
+const userCreateSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters').max(50, 'Username cannot exceed 50 characters'),
+  firstName: z.string().min(2, 'First name must be at least 2 characters').max(50, 'First name cannot exceed 50 characters'),
+  lastName: z.string().min(2, 'Last name must be at least 2 characters').max(50, 'Last name cannot exceed 50 characters'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['ADMIN', 'MANAGER', 'STAFF'] as const),
+});
+
 type UserUpdateFormData = z.infer<typeof userUpdateSchema>;
+type UserCreateFormData = z.infer<typeof userCreateSchema>;
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -71,8 +82,10 @@ const UserManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [updatingUser, setUpdatingUser] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
 
   const {
     control,
@@ -81,6 +94,18 @@ const UserManagement: React.FC = () => {
     formState: { errors },
   } = useForm<UserUpdateFormData>({
     resolver: zodResolver(userUpdateSchema),
+  });
+
+  const {
+    control: createControl,
+    handleSubmit: handleCreateSubmit,
+    reset: resetCreate,
+    formState: { errors: createErrors },
+  } = useForm<UserCreateFormData>({
+    resolver: zodResolver(userCreateSchema),
+    defaultValues: {
+      role: 'STAFF',
+    },
   });
 
   // Load users
@@ -125,6 +150,16 @@ const UserManagement: React.FC = () => {
     setEditDialogOpen(true);
   };
 
+  const handleCreateUser = () => {
+    resetCreate();
+    setCreateDialogOpen(true);
+  };
+
+  const handleCloseCreateDialog = () => {
+    setCreateDialogOpen(false);
+    resetCreate();
+  };
+
   // Handle update user
   const onSubmitUpdateUser = async (data: UserUpdateFormData) => {
     if (!selectedUser) return;
@@ -153,6 +188,35 @@ const UserManagement: React.FC = () => {
       setError('Failed to update user');
     } finally {
       setUpdatingUser(false);
+    }
+  };
+
+  // Handle create user
+  const onSubmitCreateUser = async (data: UserCreateFormData) => {
+    try {
+      setCreatingUser(true);
+      setError(null);
+
+      const response = await AuthService.createUser({
+        username: data.username,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        password: data.password,
+        role: data.role,
+      });
+
+      if (response.success) {
+        setCreateDialogOpen(false);
+        loadUsers();
+      } else {
+        setError(response.message || 'Failed to create user');
+      }
+    } catch (err) {
+      console.error('Error creating user:', err);
+      setError('Failed to create user');
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -232,6 +296,14 @@ const UserManagement: React.FC = () => {
               Manage system users and their permissions
             </Typography>
           </Box>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={handleCreateUser}
+            sx={{ minWidth: 120 }}
+          >
+            Add User
+          </Button>
         </Box>
 
         {/* Error Alert */}
@@ -561,6 +633,117 @@ const UserManagement: React.FC = () => {
                 disabled={updatingUser}
               >
                 {updatingUser ? <CircularProgress size={20} /> : 'Update User'}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+
+        {/* Create User Dialog */}
+        <Dialog open={createDialogOpen} onClose={handleCloseCreateDialog} maxWidth="sm" fullWidth>
+          <DialogTitle>
+            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+              Create New User
+            </Typography>
+          </DialogTitle>
+          <form onSubmit={handleCreateSubmit(onSubmitCreateUser)}>
+            <DialogContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Controller
+                  name="username"
+                  control={createControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Username"
+                      fullWidth
+                      error={!!createErrors.username}
+                      helperText={createErrors.username?.message}
+                    />
+                  )}
+                />
+                
+                <Controller
+                  name="firstName"
+                  control={createControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="First Name"
+                      fullWidth
+                      error={!!createErrors.firstName}
+                      helperText={createErrors.firstName?.message}
+                    />
+                  )}
+                />
+                
+                <Controller
+                  name="lastName"
+                  control={createControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Last Name"
+                      fullWidth
+                      error={!!createErrors.lastName}
+                      helperText={createErrors.lastName?.message}
+                    />
+                  )}
+                />
+                
+                <Controller
+                  name="email"
+                  control={createControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Email"
+                      type="email"
+                      fullWidth
+                      error={!!createErrors.email}
+                      helperText={createErrors.email?.message}
+                    />
+                  )}
+                />
+                
+                <Controller
+                  name="password"
+                  control={createControl}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Password"
+                      type="password"
+                      fullWidth
+                      error={!!createErrors.password}
+                      helperText={createErrors.password?.message}
+                    />
+                  )}
+                />
+                
+                <Controller
+                  name="role"
+                  control={createControl}
+                  render={({ field }) => (
+                    <FormControl fullWidth error={!!createErrors.role}>
+                      <InputLabel>Role</InputLabel>
+                      <Select {...field} label="Role">
+                        <MenuItem value="ADMIN">Admin</MenuItem>
+                        <MenuItem value="MANAGER">Manager</MenuItem>
+                        <MenuItem value="STAFF">Staff</MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseCreateDialog}>Cancel</Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={creatingUser}
+              >
+                {creatingUser ? <CircularProgress size={20} /> : 'Create User'}
               </Button>
             </DialogActions>
           </form>

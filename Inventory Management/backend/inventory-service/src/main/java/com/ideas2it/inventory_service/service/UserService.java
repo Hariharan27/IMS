@@ -76,6 +76,30 @@ public class UserService {
         return UserResponse.fromUser(savedUser);
     }
     
+    public UserResponse createUser(UserRegistrationRequest request) {
+        // Check if username already exists
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new RuntimeException("Username already exists");
+        }
+        
+        // Check if email already exists
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email already exists");
+        }
+        
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setRole(User.UserRole.valueOf(request.getRole()));
+        user.setIsActive(true);
+        
+        User savedUser = userRepository.save(user);
+        return UserResponse.fromUser(savedUser);
+    }
+    
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream()
                 .map(UserResponse::fromUser)
