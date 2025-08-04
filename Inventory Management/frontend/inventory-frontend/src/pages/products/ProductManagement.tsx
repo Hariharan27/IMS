@@ -830,7 +830,7 @@ const ProductManagement: React.FC = () => {
                           placeholder="0.00"
                           inputProps={{ step: 0.01, min: 0 }}
                           InputProps={{
-                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                            startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                           }}
                         />
                       )}
@@ -849,7 +849,7 @@ const ProductManagement: React.FC = () => {
                           placeholder="0.00"
                           inputProps={{ step: 0.01, min: 0 }}
                           InputProps={{
-                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                            startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                           }}
                         />
                       )}
@@ -1115,7 +1115,7 @@ const ProductManagement: React.FC = () => {
                           placeholder="0.00"
                           inputProps={{ step: 0.01, min: 0 }}
                           InputProps={{
-                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                            startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                           }}
                         />
                       )}
@@ -1134,7 +1134,7 @@ const ProductManagement: React.FC = () => {
                           placeholder="0.00"
                           inputProps={{ step: 0.01, min: 0 }}
                           InputProps={{
-                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                            startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                           }}
                         />
                       )}

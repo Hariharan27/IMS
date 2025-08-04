@@ -1,6 +1,6 @@
 // Format currency values
-export const formatCurrency = (value: number, currency: string = 'USD'): string => {
-  return new Intl.NumberFormat('en-US', {
+export const formatCurrency = (value: number, currency: string = 'INR'): string => {
+  return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,
@@ -161,7 +161,7 @@ export const formatChartTooltip = (value: any, name: string) => {
       return [`${value.toFixed(1)}%`, name];
     }
     if (name.includes('Value') || name.includes('Cost')) {
-      return [`$${value.toLocaleString()}`, name];
+      return [`₹${value.toLocaleString()}`, name];
     }
     return [value.toLocaleString(), name];
   }

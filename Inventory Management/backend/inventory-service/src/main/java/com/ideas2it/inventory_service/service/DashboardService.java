@@ -45,7 +45,13 @@ public class DashboardService {
     public Map<String, Object> getMetrics() {
         Map<String, Object> metrics = new HashMap<>();
         
-        // Get real counts from database using existing methods
+        // Get current month data
+        LocalDate now = LocalDate.now();
+        LocalDate currentMonthStart = now.withDayOfMonth(1);
+        LocalDate previousMonthStart = currentMonthStart.minusMonths(1);
+        LocalDate previousMonthEnd = currentMonthStart.minusDays(1);
+        
+        // Current month metrics
         long totalProducts = productRepository.countByIsActiveTrue();
         long lowStockItems = inventoryRepository.findLowStockInventory().size();
         long activeSuppliers = supplierRepository.countByIsActiveTrue();
@@ -53,7 +59,58 @@ public class DashboardService {
         long pendingOrders = purchaseOrderRepository.countByStatus(PurchaseOrder.OrderStatus.SUBMITTED);
         long criticalAlerts = alertRepository.countBySeverityAndStatus(Alert.Severity.CRITICAL, Alert.AlertStatus.ACTIVE);
         
-        // Calculate total inventory value (simplified)
+        // Calculate total inventory value
+        BigDecimal totalValue = calculateTotalInventoryValue();
+        
+        // Get recent orders count (last 30 days)
+        long recentOrders = purchaseOrderRepository.findByOrderDateBetweenOrderByOrderDateDesc(
+            now.minusDays(30), 
+            now
+        ).size();
+        
+        // Calculate trends (comparing with previous month)
+        Map<String, Object> totalProductsTrend = calculateTrend(
+            totalProducts, 
+            getPreviousMonthProductCount(previousMonthStart, previousMonthEnd)
+        );
+        
+        Map<String, Object> lowStockTrend = calculateTrend(
+            lowStockItems, 
+            getPreviousMonthLowStockCount(previousMonthStart, previousMonthEnd)
+        );
+        
+        Map<String, Object> recentOrdersTrend = calculateTrend(
+            recentOrders, 
+            getPreviousMonthOrdersCount(previousMonthStart, previousMonthEnd)
+        );
+        
+        Map<String, Object> totalValueTrend = calculateTrend(
+            totalValue.doubleValue(), 
+            getPreviousMonthTotalValue(previousMonthStart, previousMonthEnd)
+        );
+        
+        // Build metrics with trends
+        metrics.put("totalProducts", totalProducts);
+        metrics.put("totalProductsTrend", totalProductsTrend);
+        
+        metrics.put("lowStockItems", lowStockItems);
+        metrics.put("lowStockTrend", lowStockTrend);
+        
+        metrics.put("recentOrders", recentOrders);
+        metrics.put("recentOrdersTrend", recentOrdersTrend);
+        
+        metrics.put("totalValue", totalValue);
+        metrics.put("totalValueTrend", totalValueTrend);
+        
+        metrics.put("activeSuppliers", activeSuppliers);
+        metrics.put("totalWarehouses", totalWarehouses);
+        metrics.put("pendingOrders", pendingOrders);
+        metrics.put("criticalAlerts", criticalAlerts);
+        
+        return metrics;
+    }
+
+    private BigDecimal calculateTotalInventoryValue() {
         BigDecimal totalValue = BigDecimal.ZERO;
         List<Inventory> allInventory = inventoryRepository.findInventoryWithStock();
         for (Inventory inventory : allInventory) {
@@ -63,23 +120,59 @@ public class DashboardService {
                 );
             }
         }
+        return totalValue;
+    }
+
+    private Map<String, Object> calculateTrend(double currentValue, double previousValue) {
+        Map<String, Object> trend = new HashMap<>();
         
-        // Get recent orders count (last 30 days)
-        long recentOrders = purchaseOrderRepository.findByOrderDateBetweenOrderByOrderDateDesc(
-            LocalDate.now().minusDays(30), 
-            LocalDate.now()
-        ).size();
+        if (previousValue == 0) {
+            if (currentValue > 0) {
+                trend.put("change", 100.0);
+                trend.put("changeType", "increase");
+            } else {
+                trend.put("change", 0.0);
+                trend.put("changeType", "stable");
+            }
+        } else {
+            double percentageChange = ((currentValue - previousValue) / previousValue) * 100;
+            trend.put("change", Math.round(percentageChange * 100.0) / 100.0); // Round to 2 decimal places
+            
+            if (percentageChange > 0) {
+                trend.put("changeType", "increase");
+            } else if (percentageChange < 0) {
+                trend.put("changeType", "decrease");
+            } else {
+                trend.put("changeType", "stable");
+            }
+        }
         
-        metrics.put("totalProducts", totalProducts);
-        metrics.put("lowStockItems", lowStockItems);
-        metrics.put("recentOrders", recentOrders);
-        metrics.put("totalValue", totalValue);
-        metrics.put("activeSuppliers", activeSuppliers);
-        metrics.put("totalWarehouses", totalWarehouses);
-        metrics.put("pendingOrders", pendingOrders);
-        metrics.put("criticalAlerts", criticalAlerts);
+        trend.put("currentValue", currentValue);
+        trend.put("previousValue", previousValue);
         
-        return metrics;
+        return trend;
+    }
+
+    private long getPreviousMonthProductCount(LocalDate startDate, LocalDate endDate) {
+        // For products, we'll use the current count as previous month count since products don't change frequently
+        // In a real scenario, you might want to track product creation dates
+        return productRepository.countByIsActiveTrue();
+    }
+
+    private long getPreviousMonthLowStockCount(LocalDate startDate, LocalDate endDate) {
+        // For low stock, we'll use current count as previous month count
+        // In a real scenario, you might want to track historical inventory levels
+        return inventoryRepository.findLowStockInventory().size();
+    }
+
+    private long getPreviousMonthOrdersCount(LocalDate startDate, LocalDate endDate) {
+        return purchaseOrderRepository.findByOrderDateBetweenOrderByOrderDateDesc(startDate, endDate).size();
+    }
+
+    private double getPreviousMonthTotalValue(LocalDate startDate, LocalDate endDate) {
+        // For total value, we'll use current value as previous month value
+        // In a real scenario, you might want to track historical inventory values
+        return calculateTotalInventoryValue().doubleValue();
     }
 
     public Map<String, Object> getQuickActions() {

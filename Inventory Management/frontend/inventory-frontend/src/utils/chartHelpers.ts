@@ -126,7 +126,7 @@ export const formatChartTooltip = (value: any, name: string) => {
       return [`${value.toFixed(1)}%`, name];
     }
     if (name.includes('Value') || name.includes('Cost')) {
-      return [`$${value.toLocaleString()}`, name];
+      return [`₹${value.toLocaleString()}`, name];
     }
     return [value.toLocaleString(), name];
   }

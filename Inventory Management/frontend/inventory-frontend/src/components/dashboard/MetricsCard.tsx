@@ -34,7 +34,7 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
       case 'warning':
         return '⚠️';
       case 'dollar':
-        return '💰';
+        return '₹';
       case 'people':
         return '👥';
       case 'warehouse':
