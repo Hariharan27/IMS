@@ -1,262 +1,319 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Box,
   Card,
   CardContent,
   Typography,
-  Box,
   List,
   ListItem,
-  ListItemIcon,
   ListItemText,
+  ListItemIcon,
   Chip,
-  Skeleton,
   IconButton,
-  Tooltip,
+  Collapse,
   Button,
+  CircularProgress,
+  Alert as MuiAlert,
+  Tooltip,
 } from '@mui/material';
 import {
+  Warning,
+  Error,
+  Info,
+  CheckCircle,
   ExpandMore,
   ExpandLess,
-  Notifications,
-  Close,
+  Visibility,
+  VisibilityOff,
+  Refresh,
 } from '@mui/icons-material';
-import { formatTimestamp, getAlertIcon, getSeverityColor } from '../../utils/formatters';
-import type { AlertNotification } from '../../types/dashboard';
+import { alertService, type Alert, type AlertStatus } from '../../services/alertService';
+import { formatTimestamp } from '../../utils/formatters';
 
 interface AlertPanelProps {
-  alerts: AlertNotification[];
-  loading?: boolean;
+  showActiveOnly?: boolean;
+  maxAlerts?: number;
   title?: string;
-  maxItems?: number;
-  onMarkAsRead?: (alertId: string) => void;
 }
 
-const AlertPanel: React.FC<AlertPanelProps> = ({ 
-  alerts, 
-  loading = false, 
-  title = "Alerts & Notifications",
-  maxItems = 5,
-  onMarkAsRead
+const AlertPanel: React.FC<AlertPanelProps> = ({
+  showActiveOnly = true,
+  maxAlerts = 5,
+  title = 'Recent Alerts'
 }) => {
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [updating, setUpdating] = useState<number | null>(null);
 
-  const getAlertIconComponent = (type: string, severity: string) => {
-    const iconName = getAlertIcon(type);
-    const color = getSeverityColor(severity);
-    
-    return (
-      <Box
-        sx={{
-          width: 40,
-          height: 40,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: color,
-          color: 'white',
-          fontSize: '1.2rem',
-        }}
-      >
-        {iconName}
-      </Box>
-    );
-  };
-
-  const getSeverityChip = (severity: string) => {
-    return (
-      <Chip
-        label={severity.toUpperCase()}
-        size="small"
-        sx={{
-          backgroundColor: getSeverityColor(severity),
-          color: 'white',
-          fontSize: '0.7rem',
-          height: 20,
-        }}
-      />
-    );
-  };
-
-  const handleMarkAsRead = (alertId: string) => {
-    if (onMarkAsRead) {
-      onMarkAsRead(alertId);
+  const loadAlerts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = showActiveOnly 
+        ? await alertService.getActiveAlerts()
+        : await alertService.getAlerts({ size: maxAlerts });
+      
+      if (response.success) {
+        setAlerts(response.data.slice(0, maxAlerts));
+      } else {
+        setError(response.message || 'Failed to load alerts');
+      }
+    } catch (err) {
+      console.error('Error loading alerts:', err);
+      setError('Failed to load alerts');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const unreadAlerts = alerts.filter(alert => !alert.read);
-  const displayedAlerts = expanded ? alerts.slice(0, maxItems) : unreadAlerts.slice(0, maxItems);
+  useEffect(() => {
+    loadAlerts();
+  }, [showActiveOnly, maxAlerts]);
+
+  const handleStatusUpdate = async (alertId: number, newStatus: AlertStatus) => {
+    try {
+      setUpdating(alertId);
+      const response = await alertService.updateAlertStatus(alertId, {
+        status: newStatus,
+        notes: `Status updated to ${newStatus}`
+      });
+      
+      if (response.success) {
+        // Update the alert in the local state
+        setAlerts(prevAlerts => 
+          prevAlerts.map(alert => 
+            alert.id === alertId 
+              ? { ...alert, status: newStatus }
+              : alert
+          )
+        );
+      } else {
+        setError(response.message || 'Failed to update alert status');
+      }
+    } catch (err) {
+      console.error('Error updating alert status:', err);
+      setError('Failed to update alert status');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
+      case 'CRITICAL':
+        return <Error color="error" />;
+      case 'HIGH':
+        return <Warning color="warning" />;
+      case 'MEDIUM':
+        return <Info color="info" />;
+      case 'LOW':
+        return <CheckCircle color="success" />;
+      default:
+        return <Info color="info" />;
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'CRITICAL':
+        return 'error';
+      case 'HIGH':
+        return 'warning';
+      case 'MEDIUM':
+        return 'info';
+      case 'LOW':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'error';
+      case 'ACKNOWLEDGED':
+        return 'warning';
+      case 'RESOLVED':
+        return 'success';
+      case 'DISMISSED':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'URGENT':
+        return 'error';
+      case 'HIGH':
+        return 'warning';
+      case 'NORMAL':
+        return 'info';
+      case 'LOW':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  const handleToggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+
+  const handleRefresh = () => {
+    loadAlerts();
+  };
 
   if (loading) {
     return (
-      <Card sx={{ height: '100%' }}>
+      <Card>
         <CardContent>
-          <Skeleton variant="text" width="50%" height={32} />
-          <List>
-            {[1, 2, 3].map((i) => (
-              <ListItem key={i} sx={{ px: 0 }}>
-                <Skeleton variant="circular" width={40} height={40} />
-                <Box sx={{ ml: 2, flex: 1 }}>
-                  <Skeleton variant="text" width="70%" height={20} />
-                  <Skeleton variant="text" width="50%" height={16} />
-                </Box>
-              </ListItem>
-            ))}
-          </List>
+          <Box display="flex" alignItems="center" justifyContent="center" minHeight={100}>
+            <CircularProgress />
+          </Box>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card sx={{ height: '100%' }}>
+    <Card>
       <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Notifications color="primary" />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              {title}
-            </Typography>
-            {unreadAlerts.length > 0 && (
-              <Chip
-                label={unreadAlerts.length}
-                size="small"
-                color="error"
-                sx={{ ml: 1 }}
-              />
-            )}
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+          <Typography variant="h6" fontWeight="bold">
+            {title}
+          </Typography>
+          <Box display="flex" gap={1}>
+            <Tooltip title="Refresh alerts">
+              <IconButton size="small" onClick={handleRefresh}>
+                <Refresh />
+              </IconButton>
+            </Tooltip>
             <Tooltip title={expanded ? "Show less" : "Show more"}>
-              <IconButton
-                size="small"
-                onClick={() => setExpanded(!expanded)}
-                sx={{ color: 'text.secondary' }}
-              >
+              <IconButton size="small" onClick={handleToggleExpanded}>
                 {expanded ? <ExpandLess /> : <ExpandMore />}
               </IconButton>
             </Tooltip>
           </Box>
         </Box>
-        
-        {displayedAlerts.length === 0 ? (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            height: 200,
-            color: 'text.secondary'
-          }}>
-            <Typography variant="body1">
-              No alerts to display
+
+        {error && (
+          <MuiAlert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+            {error}
+          </MuiAlert>
+        )}
+
+        {alerts.length === 0 ? (
+          <Box textAlign="center" py={3}>
+            <Typography color="text.secondary">
+              {showActiveOnly ? 'No active alerts' : 'No alerts found'}
             </Typography>
           </Box>
         ) : (
-          <List sx={{ p: 0 }}>
-            {displayedAlerts.map((alert) => (
+          <List dense>
+            {alerts.map((alert) => (
               <ListItem
                 key={alert.id}
                 sx={{
-                  px: 0,
-                  py: 1.5,
+                  border: 1,
+                  borderColor: 'divider',
                   borderRadius: 1,
-                  backgroundColor: alert.read ? 'transparent' : 'action.hover',
-                  border: alert.read ? 'none' : '1px solid',
-                  borderColor: 'primary.main',
                   mb: 1,
+                  '&:last-child': { mb: 0 }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 48 }}>
-                  {getAlertIconComponent(alert.type, alert.severity)}
+                <ListItemIcon>
+                  {getSeverityIcon(alert.severity)}
                 </ListItemIcon>
-                
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
-                      <Typography 
-                        variant="body2" 
-                        sx={{ 
-                          fontWeight: 600,
-                          wordBreak: 'break-word',
-                          lineHeight: 1.3,
-                        }}
-                      >
+                    <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                      <Typography variant="subtitle2" fontWeight="bold">
                         {alert.title}
                       </Typography>
-                      {getSeverityChip(alert.severity)}
-                      {!alert.read && (
-                        <Chip
-                          label="NEW"
-                          size="small"
-                          color="primary"
-                          sx={{ fontSize: '0.6rem', height: 16 }}
-                        />
-                      )}
+                      <Chip
+                        label={alert.severity}
+                        size="small"
+                        color={getSeverityColor(alert.severity) as any}
+                      />
+                      <Chip
+                        label={alert.priority}
+                        size="small"
+                        color={getPriorityColor(alert.priority) as any}
+                      />
+                      <Chip
+                        label={alert.status}
+                        size="small"
+                        color={getStatusColor(alert.status) as any}
+                      />
                     </Box>
                   }
                   secondary={
                     <Box>
-                      <Typography 
-                        variant="caption" 
-                        color="text.secondary"
-                        sx={{
-                          wordBreak: 'break-word',
-                          lineHeight: 1.4,
-                        }}
-                      >
+                      <Typography variant="body2" color="text.secondary" mb={0.5}>
                         {alert.message}
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
-                        <Typography variant="caption" color="text.secondary">
-                          {formatTimestamp(alert.timestamp)}
+                      <Typography variant="caption" color="text.secondary">
+                        {formatTimestamp(alert.triggeredAt)} • {alert.createdBy.firstName} {alert.createdBy.lastName}
+                      </Typography>
+                      {alert.notes && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Note: {alert.notes}
                         </Typography>
-                        {alert.action && (
-                          <Button
-                            size="small"
-                            variant="text"
-                            sx={{ 
-                              fontSize: '0.7rem', 
-                              p: 0, 
-                              minWidth: 'auto',
-                              textTransform: 'none',
-                              color: 'primary.main',
-                              '&:hover': { backgroundColor: 'transparent' }
-                            }}
-                          >
-                            {alert.action.label}
-                          </Button>
-                        )}
-                      </Box>
+                      )}
                     </Box>
                   }
                 />
-                
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  {!alert.read && onMarkAsRead && (
-                    <Tooltip title="Mark as read">
-                      <IconButton
-                        size="small"
-                        onClick={() => handleMarkAsRead(alert.id)}
-                        sx={{ color: 'text.secondary' }}
-                      >
-                        <Close fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                <Box display="flex" flexDirection="column" gap={0.5}>
+                  {alert.status === 'ACTIVE' && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleStatusUpdate(alert.id, 'ACKNOWLEDGED')}
+                      disabled={updating === alert.id}
+                      startIcon={updating === alert.id ? <CircularProgress size={16} /> : <Visibility />}
+                    >
+                      Acknowledge
+                    </Button>
+                  )}
+                  {alert.status === 'ACKNOWLEDGED' && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleStatusUpdate(alert.id, 'RESOLVED')}
+                      disabled={updating === alert.id}
+                      startIcon={updating === alert.id ? <CircularProgress size={16} /> : <CheckCircle />}
+                    >
+                      Resolve
+                    </Button>
+                  )}
+                  {alert.status === 'ACTIVE' && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleStatusUpdate(alert.id, 'DISMISSED')}
+                      disabled={updating === alert.id}
+                      startIcon={updating === alert.id ? <CircularProgress size={16} /> : <VisibilityOff />}
+                    >
+                      Dismiss
+                    </Button>
                   )}
                 </Box>
               </ListItem>
             ))}
           </List>
         )}
-        
-        {alerts.length > maxItems && (
-          <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              {expanded 
-                ? `Showing ${Math.min(maxItems, alerts.length)} of ${alerts.length} alerts`
-                : `${unreadAlerts.length} unread alerts`
-              }
-            </Typography>
+
+        {!expanded && alerts.length > 0 && (
+          <Box textAlign="center" mt={2}>
+            <Button size="small" onClick={handleToggleExpanded}>
+              Show {alerts.length} alerts
+            </Button>
           </Box>
         )}
       </CardContent>
