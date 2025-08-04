@@ -31,7 +31,6 @@ import {
   AccountCircle,
   Logout,
   Settings,
-  Assessment,
   Warehouse,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -124,12 +123,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       path: '/users',
       roles: ['ADMIN', 'MANAGER'],
     },
-    {
-      text: 'Reports',
-      icon: <Assessment />,
-      path: '/reports',
-      roles: ['ADMIN', 'MANAGER'],
-    },
+
   ];
 
   const filteredMenuItems = menuItems.filter(item => 

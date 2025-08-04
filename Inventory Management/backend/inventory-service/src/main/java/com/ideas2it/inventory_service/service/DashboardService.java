@@ -177,14 +177,10 @@ public class DashboardService {
 
     public Map<String, Object> getQuickActions() {
         List<Map<String, Object>> actions = Arrays.asList(
-            createQuickAction("add_product", "Add Product", "Create a new product", "add_product", "/products/new", "#2196F3", Arrays.asList("ADMIN", "MANAGER")),
             createQuickAction("view_inventory", "View Inventory", "Check current stock levels", "view_inventory", "/inventory", "#4CAF50", Arrays.asList("ADMIN", "MANAGER", "STAFF")),
-            createQuickAction("create_order", "Create Order", "Create a new purchase order", "create_order", "/purchase-orders/new", "#FF9800", Arrays.asList("ADMIN", "MANAGER")),
-            createQuickAction("view_reports", "View Reports", "Access analytics and reports", "view_reports", "/reports", "#9C27B0", Arrays.asList("ADMIN", "MANAGER")),
             createQuickAction("manage_users", "Manage Users", "User management interface", "manage_users", "/users", "#607D8B", Arrays.asList("ADMIN")),
             createQuickAction("manage_suppliers", "Manage Suppliers", "Supplier management", "manage_suppliers", "/suppliers", "#795548", Arrays.asList("ADMIN", "MANAGER")),
-            createQuickAction("view_alerts", "View Alerts", "System alerts and notifications", "view_alerts", "/alerts", "#F44336", Arrays.asList("ADMIN", "MANAGER", "STAFF")),
-            createQuickAction("settings", "Settings", "System configuration", "settings", "/settings", "#9E9E9E", Arrays.asList("ADMIN"))
+            createQuickAction("view_alerts", "View Alerts", "System alerts and notifications", "view_alerts", "/alerts", "#F44336", Arrays.asList("ADMIN", "MANAGER", "STAFF"))
         );
         
         Map<String, Object> result = new HashMap<>();
