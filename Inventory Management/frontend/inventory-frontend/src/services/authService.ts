@@ -123,10 +123,21 @@ export class AuthService {
   // Token validation
   static isTokenValid(token: string): boolean {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Use a more reliable base64 decode method
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(window.atob(base64));
       const currentTime = Date.now() / 1000;
+      
+      console.log('Token validation:', {
+        exp: payload.exp,
+        currentTime,
+        isValid: payload.exp > currentTime
+      });
+      
       return payload.exp > currentTime;
     } catch (error) {
+      console.error('Token validation error:', error);
       return false;
     }
   }

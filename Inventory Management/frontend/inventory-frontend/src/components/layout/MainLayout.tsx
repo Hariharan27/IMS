@@ -181,9 +181,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* App Bar */}
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
+          backgroundColor: 'white',
+          color: 'text.primary',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 0,
+          '& .MuiToolbar-root': {
+            borderRadius: 0,
+          },
         }}
       >
         <Toolbar>
@@ -197,7 +206,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
             {menuItems.find(item => item.path === location.pathname)?.text || 'Dashboard'}
           </Typography>
 
@@ -220,7 +229,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               color="inherit"
               onClick={handleProfileMenuOpen}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                 {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}
               </Avatar>
             </IconButton>
@@ -243,7 +252,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              borderRadius: 0,
+            },
           }}
         >
           {drawer}
@@ -254,7 +267,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': { 
+              boxSizing: 'border-box', 
+              width: drawerWidth,
+              borderRadius: 0,
+            },
           }}
           open
         >

@@ -73,8 +73,37 @@ class InventoryService {
     referenceId?: number;
     notes?: string;
   }): Promise<StockAdjustmentResponse> {
-    const response = await api.post('/inventory/update', data);
-    return response.data;
+    // Transform the data to match backend DTO
+    const stockMovementData = {
+      productId: data.productId,
+      warehouseId: data.warehouseId,
+      movementType: data.movementType,
+      quantity: Math.abs(data.quantityChange), // Use absolute value for quantity
+      referenceType: data.referenceType as any, // Cast to match backend enum
+      referenceId: data.referenceId,
+      notes: data.notes,
+    };
+    
+    const response = await api.post('/inventory/movements', stockMovementData);
+    
+    // The backend returns StockMovementResponse, but frontend expects StockAdjustmentResponse
+    // We need to transform the response to match the expected format
+    const movementResponse = response.data;
+    
+    // Create a mock StockAdjustmentResponse since the backend doesn't return inventory data directly
+    // The inventory will be updated in the backend, so we can return a success response
+    return {
+      success: movementResponse.success,
+      data: {
+        productId: data.productId,
+        warehouseId: data.warehouseId,
+        quantityOnHand: 0, // This will be updated when we reload inventory
+        quantityReserved: 0, // This will be updated when we reload inventory
+        quantityAvailable: 0, // This will be updated when we reload inventory
+        lastUpdatedAt: new Date().toISOString(),
+      },
+      message: movementResponse.message || 'Stock movement created successfully',
+    };
   }
 
   // Get stock movements
@@ -118,6 +147,18 @@ class InventoryService {
   // Get inventory alerts
   async getInventoryAlerts(): Promise<any[]> {
     const response = await api.get('/inventory/alerts');
+    return response.data;
+  }
+
+  // Create new inventory item
+  async createInventory(data: {
+    productId: number;
+    warehouseId: number;
+    quantityOnHand: number;
+    quantityReserved: number;
+    notes?: string;
+  }): Promise<InventoryItemResponse> {
+    const response = await api.post('/inventory', data);
     return response.data;
   }
 }

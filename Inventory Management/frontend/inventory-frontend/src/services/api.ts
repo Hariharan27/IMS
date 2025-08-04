@@ -14,8 +14,20 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('authToken');
+    console.log('API Request:', {
+      url: config.url,
+      method: config.method,
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0,
+      headers: config.headers,
+      data: config.data
+    });
+    
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+    } else {
+      console.warn('No auth token found for request:', config.url);
     }
     return config;
   },
@@ -27,14 +39,30 @@ api.interceptors.request.use(
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response: AxiosResponse) => {
+    console.log('API Response:', {
+      url: response.config.url,
+      status: response.status,
+      success: true
+    });
     return response;
   },
   (error) => {
+    console.error('API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message,
+      data: error.response?.data
+    });
+    
     if (error.response?.status === 401) {
       // Token expired or invalid
+      console.log('Token expired, redirecting to login');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
+    } else if (error.response?.status === 403) {
+      console.error('403 Forbidden - Authentication issue');
+      console.log('Current token:', localStorage.getItem('authToken'));
     }
     return Promise.reject(error);
   }

@@ -7,13 +7,13 @@ spring:
   
   datasource:
     url: jdbc:postgresql://localhost:5432/inventory_db
-    username: inventory_user
-    password: inventory_pass
+    username: ideas2it
+    password: 
     driver-class-name: org.postgresql.Driver
   
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:

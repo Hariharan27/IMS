@@ -1,6 +1,19 @@
 import api from './api';
 
 // Types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  isActive: boolean;
+  lastLoginAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: number;
   sku: string;
@@ -23,6 +36,8 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  createdBy?: User;
+  updatedBy?: User;
 }
 
 export interface Category {

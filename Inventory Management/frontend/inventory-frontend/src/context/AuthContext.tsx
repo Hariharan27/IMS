@@ -99,7 +99,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const token = AuthService.getToken();
     const userData = AuthService.getUserFromStorage();
     
+    console.log('Initializing auth state:', {
+      hasToken: !!token,
+      hasUserData: !!userData,
+      tokenLength: token ? token.length : 0,
+      userData: userData
+    });
+    
     if (token && userData && AuthService.isTokenValid(token)) {
+      console.log('Token is valid, setting authenticated state');
       // Token is valid, set authenticated state
       dispatch({
         type: 'LOGIN_SUCCESS',
@@ -120,6 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
       });
     } else {
+      console.log('Token invalid or missing, clearing storage');
       // Invalid or expired token, clear storage without redirect
       AuthService.clearStorage();
       // Set loading to false since we're not authenticated
@@ -148,6 +157,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           updatedAt: new Date().toISOString(),
         };
         
+        console.log('Login successful:', {
+          username: response.data.username,
+          role: response.data.role,
+          token: response.data.token ? 'Present' : 'Missing'
+        });
+        
         dispatch({
           type: 'LOGIN_SUCCESS',
           payload: {
@@ -156,12 +171,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
         });
       } else {
+        console.error('Login failed:', response.message);
         dispatch({
           type: 'LOGIN_FAILURE',
           payload: response.message || 'Login failed',
         });
       }
     } catch (error) {
+      console.error('Login error:', error);
       dispatch({
         type: 'LOGIN_FAILURE',
         payload: error instanceof Error ? error.message : 'Login failed',

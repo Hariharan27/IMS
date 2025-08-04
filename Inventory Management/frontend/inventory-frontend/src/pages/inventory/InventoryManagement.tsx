@@ -45,21 +45,23 @@ import { z } from 'zod';
 import MainLayout from '../../components/layout/MainLayout';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 import InventoryService from '../../services/inventoryService';
+import ProductService from '../../services/productService';
+import WarehouseService from '../../services/warehouseService';
 import type { InventoryItem, StockAdjustmentData } from '../../types/inventory';
 
 // Stock adjustment form schema
 const stockAdjustmentSchema = z.object({
-  quantity: z.number().min(1, 'Quantity must be positive'),
+  quantity: z.string().min(1, 'Quantity is required'),
   reason: z.string().min(1, 'Reason is required'),
   notes: z.string().optional(),
 });
 
 // Inventory creation form schema
 const inventoryCreationSchema = z.object({
-  productId: z.number().min(1, 'Product is required'),
-  warehouseId: z.number().min(1, 'Warehouse is required'),
-  quantityOnHand: z.number().min(0, 'Quantity must be non-negative'),
-  quantityReserved: z.number().min(0, 'Reserved quantity must be non-negative'),
+  productId: z.string().min(1, 'Product is required'),
+  warehouseId: z.string().min(1, 'Warehouse is required'),
+  quantityOnHand: z.string().min(1, 'Quantity is required'),
+  quantityReserved: z.string().min(1, 'Reserved quantity is required'),
   notes: z.string().optional(),
 });
 
@@ -87,7 +89,7 @@ const InventoryManagement: React.FC = () => {
   } = useForm<StockAdjustmentFormData>({
     resolver: zodResolver(stockAdjustmentSchema),
     defaultValues: {
-      quantity: 0,
+      quantity: '',
       reason: '',
       notes: '',
     },
@@ -101,10 +103,10 @@ const InventoryManagement: React.FC = () => {
   } = useForm<InventoryCreationFormData>({
     resolver: zodResolver(inventoryCreationSchema),
     defaultValues: {
-      productId: 0,
-      warehouseId: 0,
-      quantityOnHand: 0,
-      quantityReserved: 0,
+      productId: '',
+      warehouseId: '',
+      quantityOnHand: '',
+      quantityReserved: '',
       notes: '',
     },
   });
@@ -137,28 +139,19 @@ const InventoryManagement: React.FC = () => {
   // Load products and warehouses for creation
   const loadProductsAndWarehouses = async () => {
     try {
-      // Load products
-      const productsResponse = await fetch('http://localhost:8080/api/products', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const productsData = await productsResponse.json();
-      if (productsData.success) {
-        setProducts(productsData.data);
+      // Load products using ProductService
+      const productsResponse = await ProductService.getProducts({ isActive: true });
+      if (productsResponse.success) {
+        const productsData = Array.isArray(productsResponse.data)
+          ? productsResponse.data
+          : productsResponse.data.content;
+        setProducts(productsData);
       }
 
-      // Load warehouses
-      const warehousesResponse = await fetch('http://localhost:8080/api/warehouses', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      const warehousesData = await warehousesResponse.json();
-      if (warehousesData.success) {
-        setWarehouses(warehousesData.data);
+      // Load warehouses using WarehouseService
+      const warehousesResponse = await WarehouseService.getActiveWarehouses();
+      if (warehousesResponse.success) {
+        setWarehouses(warehousesResponse.data);
       }
     } catch (err) {
       console.error('Error loading products/warehouses:', err);
@@ -168,17 +161,15 @@ const InventoryManagement: React.FC = () => {
   // Create inventory
   const onCreateInventory = async (data: InventoryCreationFormData) => {
     try {
-      const response = await fetch('http://localhost:8080/api/inventory', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
+      const response = await InventoryService.createInventory({
+        productId: Number(data.productId),
+        warehouseId: Number(data.warehouseId),
+        quantityOnHand: Number(data.quantityOnHand),
+        quantityReserved: Number(data.quantityReserved),
+        notes: data.notes,
       });
       
-      const result = await response.json();
-      if (result.success) {
+      if (response.success) {
         setCreateDialogOpen(false);
         resetCreate();
         loadInventory(); // Reload data
@@ -199,6 +190,7 @@ const InventoryManagement: React.FC = () => {
   }, [filterStatus]);
 
   const handleStockAdjustment = (item: InventoryItem, type: 'add' | 'remove') => {
+    console.log('Opening stock adjustment dialog:', { item, type });
     setSelectedItem(item);
     setAdjustmentType(type);
     reset();
@@ -206,28 +198,50 @@ const InventoryManagement: React.FC = () => {
   };
 
   const onSubmitAdjustment = async (data: StockAdjustmentFormData) => {
-    if (!selectedItem) return;
+    console.log('Submitting stock adjustment:', { data, selectedItem, adjustmentType });
+    
+    if (!selectedItem) {
+      console.error('No selected item for stock adjustment');
+      return;
+    }
 
     try {
-      const response = await InventoryService.updateInventory({
+      // First, test if we can access other authenticated endpoints
+      console.log('Testing authentication with inventory endpoint...');
+      try {
+        const testResponse = await InventoryService.getInventorySummary();
+        console.log('Inventory test successful:', testResponse.success);
+      } catch (testErr) {
+        console.error('Inventory test failed:', testErr);
+      }
+
+      const requestData = {
         productId: selectedItem.product.id,
         warehouseId: selectedItem.warehouse.id,
-        quantityChange: adjustmentType === 'add' ? data.quantity : -data.quantity,
-        movementType: adjustmentType === 'add' ? 'IN' : 'OUT',
-        referenceType: 'MANUAL_ADJUSTMENT',
+        quantityChange: adjustmentType === 'add' ? Number(data.quantity) : -Number(data.quantity),
+        movementType: (adjustmentType === 'add' ? 'IN' : 'OUT') as 'IN' | 'OUT',
+        referenceType: 'ADJUSTMENT',
         notes: `${data.reason}${data.notes ? ` - ${data.notes}` : ''}`,
-      });
+      };
+      
+      console.log('Sending request to API:', requestData);
+      
+      const response = await InventoryService.updateInventory(requestData);
+      
+      console.log('API response:', response);
       
       if (response.success) {
+        console.log('Stock adjustment successful');
         setAdjustmentDialogOpen(false);
         setSelectedItem(null);
         loadInventory(); // Reload data
       } else {
-        setError('Failed to adjust stock');
+        console.error('Stock adjustment failed:', response.message);
+        setError('Failed to adjust stock: ' + response.message);
       }
     } catch (err) {
       console.error('Error adjusting stock:', err);
-      setError('Failed to adjust stock');
+      setError('Failed to adjust stock: ' + (err as any)?.message || 'Unknown error');
     }
   };
 
@@ -537,6 +551,7 @@ const InventoryManagement: React.FC = () => {
                       fullWidth
                       error={!!errors.quantity}
                       helperText={errors.quantity?.message}
+                      onChange={(e) => field.onChange(e.target.value)}
                     />
                   )}
                 />
@@ -596,9 +611,12 @@ const InventoryManagement: React.FC = () => {
                   render={({ field }) => (
                     <FormControl fullWidth error={!!createErrors.productId}>
                       <InputLabel>Product</InputLabel>
-                      <Select {...field} label="Product">
+                      <Select {...field} label="Product" value={field.value || ''}>
+                        <MenuItem value="" disabled>
+                          <em>Select a product</em>
+                        </MenuItem>
                         {products.map((product) => (
-                          <MenuItem key={product.id} value={product.id}>
+                          <MenuItem key={product.id} value={product.id.toString()}>
                             {product.name} ({product.sku})
                           </MenuItem>
                         ))}
@@ -612,9 +630,12 @@ const InventoryManagement: React.FC = () => {
                   render={({ field }) => (
                     <FormControl fullWidth error={!!createErrors.warehouseId}>
                       <InputLabel>Warehouse</InputLabel>
-                      <Select {...field} label="Warehouse">
+                      <Select {...field} label="Warehouse" value={field.value || ''}>
+                        <MenuItem value="" disabled>
+                          <em>Select a warehouse</em>
+                        </MenuItem>
                         {warehouses.map((warehouse) => (
-                          <MenuItem key={warehouse.id} value={warehouse.id}>
+                          <MenuItem key={warehouse.id} value={warehouse.id.toString()}>
                             {warehouse.name} ({warehouse.code})
                           </MenuItem>
                         ))}
@@ -633,6 +654,7 @@ const InventoryManagement: React.FC = () => {
                       fullWidth
                       error={!!createErrors.quantityOnHand}
                       helperText={createErrors.quantityOnHand?.message}
+                      onChange={(e) => field.onChange(e.target.value)}
                     />
                   )}
                 />
@@ -647,6 +669,7 @@ const InventoryManagement: React.FC = () => {
                       fullWidth
                       error={!!createErrors.quantityReserved}
                       helperText={createErrors.quantityReserved?.message}
+                      onChange={(e) => field.onChange(e.target.value)}
                     />
                   )}
                 />

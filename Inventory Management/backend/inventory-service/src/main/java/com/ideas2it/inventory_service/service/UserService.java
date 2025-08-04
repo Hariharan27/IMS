@@ -4,6 +4,7 @@ import com.ideas2it.inventory_service.dto.LoginRequest;
 import com.ideas2it.inventory_service.dto.LoginResponse;
 import com.ideas2it.inventory_service.dto.UserRegistrationRequest;
 import com.ideas2it.inventory_service.dto.UserResponse;
+import com.ideas2it.inventory_service.dto.UserUpdateRequest;
 import com.ideas2it.inventory_service.entity.User;
 import com.ideas2it.inventory_service.repository.UserRepository;
 import com.ideas2it.inventory_service.util.JwtUtil;
@@ -105,6 +106,40 @@ public class UserService {
         
         User user = userOpt.get();
         user.setIsActive(isActive);
+        User savedUser = userRepository.save(user);
+        return UserResponse.fromUser(savedUser);
+    }
+    
+    public UserResponse updateUser(Long id, UserUpdateRequest request) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("User not found");
+        }
+        
+        User user = userOpt.get();
+        
+        // Update fields if provided
+        if (request.getFirstName() != null) {
+            user.setFirstName(request.getFirstName());
+        }
+        if (request.getLastName() != null) {
+            user.setLastName(request.getLastName());
+        }
+        if (request.getEmail() != null) {
+            // Check if email already exists for another user
+            Optional<User> existingUserWithEmail = userRepository.findByEmail(request.getEmail());
+            if (existingUserWithEmail.isPresent() && !existingUserWithEmail.get().getId().equals(id)) {
+                throw new RuntimeException("Email already exists");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getRole() != null) {
+            user.setRole(User.UserRole.valueOf(request.getRole()));
+        }
+        if (request.getIsActive() != null) {
+            user.setIsActive(request.getIsActive());
+        }
+        
         User savedUser = userRepository.save(user);
         return UserResponse.fromUser(savedUser);
     }

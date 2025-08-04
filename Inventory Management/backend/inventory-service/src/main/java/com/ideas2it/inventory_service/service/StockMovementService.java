@@ -2,10 +2,12 @@ package com.ideas2it.inventory_service.service;
 
 import com.ideas2it.inventory_service.dto.StockMovementRequest;
 import com.ideas2it.inventory_service.dto.StockMovementResponse;
+import com.ideas2it.inventory_service.entity.Inventory;
 import com.ideas2it.inventory_service.entity.Product;
 import com.ideas2it.inventory_service.entity.StockMovement;
 import com.ideas2it.inventory_service.entity.User;
 import com.ideas2it.inventory_service.entity.Warehouse;
+import com.ideas2it.inventory_service.repository.InventoryRepository;
 import com.ideas2it.inventory_service.repository.ProductRepository;
 import com.ideas2it.inventory_service.repository.StockMovementRepository;
 import com.ideas2it.inventory_service.repository.UserRepository;
@@ -31,6 +33,7 @@ public class StockMovementService {
     private final ProductRepository productRepository;
     private final WarehouseRepository warehouseRepository;
     private final UserRepository userRepository;
+    private final InventoryRepository inventoryRepository;
     
     public List<StockMovementResponse> getAllStockMovements() {
         log.info("Fetching all stock movements");
@@ -131,9 +134,12 @@ public class StockMovementService {
         }
         
         // Get current user for audit
+        log.info("Looking up user with ID: {}", currentUserId);
         User currentUser = userRepository.findById(currentUserId)
-                .orElseThrow(() -> new RuntimeException("Current user not found"));
+                .orElseThrow(() -> new RuntimeException("Current user not found with ID: " + currentUserId));
+        log.info("Found user: {} (ID: {})", currentUser.getUsername(), currentUser.getId());
         
+        // Create and save the stock movement
         StockMovement movement = new StockMovement();
         movement.setProduct(product);
         movement.setWarehouse(warehouse);
@@ -147,7 +153,54 @@ public class StockMovementService {
         StockMovement savedMovement = stockMovementRepository.save(movement);
         log.info("Stock movement created successfully with ID: {}", savedMovement.getId());
         
+        // Update inventory quantities based on the stock movement
+        updateInventoryQuantities(product.getId(), warehouse.getId(), request.getMovementType(), request.getQuantity(), currentUser);
+        
         return StockMovementResponse.fromStockMovement(savedMovement);
+    }
+    
+    /**
+     * Update inventory quantities based on stock movement
+     */
+    private void updateInventoryQuantities(Long productId, Long warehouseId, StockMovement.MovementType movementType, Integer quantity, User currentUser) {
+        log.info("Updating inventory quantities for product ID: {} and warehouse ID: {} with movement type: {} and quantity: {}", 
+                productId, warehouseId, movementType, quantity);
+        
+        // Find existing inventory record
+        Inventory inventory = inventoryRepository.findByProductIdAndWarehouseId(productId, warehouseId)
+                .orElse(null);
+        
+        if (inventory == null) {
+            // Create new inventory record if it doesn't exist
+            log.info("Creating new inventory record for product ID: {} and warehouse ID: {}", productId, warehouseId);
+            inventory = new Inventory();
+            inventory.setProduct(productRepository.findById(productId).orElseThrow());
+            inventory.setWarehouse(warehouseRepository.findById(warehouseId).orElseThrow());
+            inventory.setQuantityOnHand(0);
+            inventory.setQuantityReserved(0);
+            inventory.setQuantityAvailable(0);
+        }
+        
+        // Update quantities based on movement type
+        if (movementType == StockMovement.MovementType.IN) {
+            inventory.setQuantityOnHand(inventory.getQuantityOnHand() + quantity);
+            log.info("Added {} to quantity on hand. New total: {}", quantity, inventory.getQuantityOnHand());
+        } else if (movementType == StockMovement.MovementType.OUT) {
+            // Check if we have enough stock
+            if (inventory.getQuantityOnHand() < quantity) {
+                throw new RuntimeException("Insufficient stock. Available: " + inventory.getQuantityOnHand() + ", Requested: " + quantity);
+            }
+            inventory.setQuantityOnHand(inventory.getQuantityOnHand() - quantity);
+            log.info("Removed {} from quantity on hand. New total: {}", quantity, inventory.getQuantityOnHand());
+        }
+        
+        // Update audit fields
+        inventory.setUpdatedBy(currentUser);
+        inventory.setLastUpdatedAt(LocalDateTime.now());
+        
+        // Save the updated inventory
+        inventoryRepository.save(inventory);
+        log.info("Inventory updated successfully for product ID: {} and warehouse ID: {}", productId, warehouseId);
     }
     
     public long getStockMovementCount() {

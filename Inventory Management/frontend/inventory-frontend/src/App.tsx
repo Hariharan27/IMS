@@ -9,6 +9,7 @@ import LoginForm from './components/auth/LoginForm';
 import RegisterForm from './components/auth/RegisterForm';
 import Dashboard from './pages/dashboard/Dashboard';
 import ProductManagement from './pages/products/ProductManagement';
+import CategoryManagement from './pages/categories/CategoryManagement';
 import InventoryManagement from './pages/inventory/InventoryManagement';
 import AlertManagement from './pages/alerts/AlertManagement';
 import UserManagement from './pages/users/UserManagement';
@@ -75,6 +76,15 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
               <ProductManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/categories" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
+              <CategoryManagement />
             </ProtectedRoute>
           } 
         />
