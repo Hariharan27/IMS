@@ -11,6 +11,7 @@ import Dashboard from './pages/dashboard/Dashboard';
 import ProductManagement from './pages/products/ProductManagement';
 import CategoryManagement from './pages/categories/CategoryManagement';
 import InventoryManagement from './pages/inventory/InventoryManagement';
+import PurchaseOrderManagement from './pages/purchase-orders/PurchaseOrderManagement';
 import AlertManagement from './pages/alerts/AlertManagement';
 import UserManagement from './pages/users/UserManagement';
 import UserProfile from './pages/users/UserProfile';
@@ -94,6 +95,15 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER', 'STAFF']}>
               <InventoryManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/purchase-orders" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
+              <PurchaseOrderManagement />
             </ProtectedRoute>
           } 
         />
