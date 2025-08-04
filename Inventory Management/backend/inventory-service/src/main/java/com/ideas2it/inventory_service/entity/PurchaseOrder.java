@@ -71,7 +71,7 @@ public class PurchaseOrder {
     private List<PurchaseOrderItem> items = new ArrayList<>();
     
     public enum OrderStatus {
-        DRAFT, SUBMITTED, APPROVED, RECEIVED, CANCELLED
+        DRAFT, SUBMITTED, APPROVED, ORDERED, PARTIALLY_RECEIVED, FULLY_RECEIVED, CANCELLED, CLOSED
     }
     
     // Helper methods
@@ -98,9 +98,15 @@ public class PurchaseOrder {
             case SUBMITTED:
                 return newStatus == OrderStatus.APPROVED || newStatus == OrderStatus.CANCELLED;
             case APPROVED:
-                return newStatus == OrderStatus.RECEIVED || newStatus == OrderStatus.CANCELLED;
-            case RECEIVED:
+                return newStatus == OrderStatus.ORDERED || newStatus == OrderStatus.CANCELLED;
+            case ORDERED:
+                return newStatus == OrderStatus.PARTIALLY_RECEIVED || newStatus == OrderStatus.FULLY_RECEIVED || newStatus == OrderStatus.CANCELLED;
+            case PARTIALLY_RECEIVED:
+                return newStatus == OrderStatus.FULLY_RECEIVED || newStatus == OrderStatus.CANCELLED;
+            case FULLY_RECEIVED:
+                return newStatus == OrderStatus.CLOSED;
             case CANCELLED:
+            case CLOSED:
                 return false; // Terminal states
             default:
                 return false;

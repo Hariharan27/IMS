@@ -50,6 +50,7 @@ import {
   Person,
   AttachMoney,
   Inventory,
+  Settings,
 } from '@mui/icons-material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -201,6 +202,29 @@ const PurchaseOrderManagement: React.FC = () => {
     setSelectedOrder(order);
     setNewStatus(order.status);
     setStatusDialogOpen(true);
+  };
+
+  // Get valid status transitions for an order
+  const getValidStatusTransitions = (currentStatus: PurchaseOrderStatus): PurchaseOrderStatus[] => {
+    switch (currentStatus) {
+      case 'DRAFT':
+        return ['SUBMITTED', 'CANCELLED'];
+      case 'SUBMITTED':
+        return ['APPROVED', 'CANCELLED'];
+      case 'APPROVED':
+        return ['ORDERED', 'CANCELLED'];
+      case 'ORDERED':
+        return ['PARTIALLY_RECEIVED', 'FULLY_RECEIVED', 'CANCELLED'];
+      case 'PARTIALLY_RECEIVED':
+        return ['FULLY_RECEIVED', 'CANCELLED'];
+      case 'FULLY_RECEIVED':
+        return ['CLOSED'];
+      case 'CANCELLED':
+      case 'CLOSED':
+        return []; // No further transitions allowed
+      default:
+        return [];
+    }
   };
 
   // Handle submit create order
@@ -570,15 +594,17 @@ const PurchaseOrderManagement: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                           )}
-                          <Tooltip title="Update Status">
-                            <IconButton
-                              size="small"
-                              color="info"
-                              onClick={() => handleStatusUpdateDialog(order)}
-                            >
-                              <CheckCircle />
-                            </IconButton>
-                          </Tooltip>
+                          {getValidStatusTransitions(order.status).length > 0 && (
+                            <Tooltip title="Update Status">
+                              <IconButton
+                                size="small"
+                                color="info"
+                                onClick={() => handleStatusUpdateDialog(order)}
+                              >
+                                <Settings />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -1197,14 +1223,11 @@ const PurchaseOrderManagement: React.FC = () => {
                   onChange={(e) => setNewStatus(e.target.value as PurchaseOrderStatus)}
                   label="New Status"
                 >
-                  <MenuItem value="DRAFT">Draft</MenuItem>
-                  <MenuItem value="SUBMITTED">Submitted</MenuItem>
-                  <MenuItem value="APPROVED">Approved</MenuItem>
-                  <MenuItem value="ORDERED">Ordered</MenuItem>
-                  <MenuItem value="PARTIALLY_RECEIVED">Partially Received</MenuItem>
-                  <MenuItem value="FULLY_RECEIVED">Fully Received</MenuItem>
-                  <MenuItem value="CANCELLED">Cancelled</MenuItem>
-                  <MenuItem value="CLOSED">Closed</MenuItem>
+                  {selectedOrder && getValidStatusTransitions(selectedOrder.status).map((status) => (
+                    <MenuItem key={status} value={status}>
+                      {status.replace('_', ' ')}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
               
@@ -1216,6 +1239,12 @@ const PurchaseOrderManagement: React.FC = () => {
                     size="small"
                   />
                 </Typography>
+                
+                {selectedOrder && getValidStatusTransitions(selectedOrder.status).length === 0 && (
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    This order has reached a terminal state and cannot be updated further.
+                  </Alert>
+                )}
               </Box>
             </Box>
           </DialogContent>
@@ -1226,7 +1255,7 @@ const PurchaseOrderManagement: React.FC = () => {
             <Button
               onClick={handleStatusUpdate}
               variant="contained"
-              disabled={updatingStatus}
+              disabled={updatingStatus || (selectedOrder && getValidStatusTransitions(selectedOrder.status).length === 0)}
             >
               {updatingStatus ? <CircularProgress size={20} /> : 'Update Status'}
             </Button>
