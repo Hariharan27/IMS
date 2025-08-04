@@ -45,6 +45,7 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +54,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  const handleSidebarToggle = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -174,13 +179,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         position="fixed"
         elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          width: { 
+            xs: '100%',
+            sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
+          },
+          ml: { 
+            xs: 0,
+            sm: sidebarOpen ? `${drawerWidth}px` : 0
+          },
           backgroundColor: 'white',
           color: 'text.primary',
           borderBottom: '1px solid',
           borderColor: 'divider',
           borderRadius: 0,
+          transition: 'width 0.3s ease, margin-left 0.3s ease',
           '& .MuiToolbar-root': {
             borderRadius: 0,
           },
@@ -189,10 +201,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
+            aria-label="toggle sidebar"
             edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            onClick={handleSidebarToggle}
+            sx={{ mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
@@ -231,7 +243,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       {/* Navigation Drawer */}
       <Box
         component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        sx={{ 
+          width: { sm: sidebarOpen ? drawerWidth : 0 }, 
+          flexShrink: { sm: 0 },
+          transition: 'width 0.3s ease'
+        }}
       >
         {/* Mobile drawer */}
         <Drawer
@@ -262,6 +278,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               boxSizing: 'border-box', 
               width: drawerWidth,
               borderRadius: 0,
+              transform: sidebarOpen ? 'translateX(0)' : `translateX(-${drawerWidth}px)`,
+              transition: 'transform 0.3s ease',
             },
           }}
           open
@@ -276,8 +294,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          width: { 
+            xs: '100%',
+            sm: sidebarOpen ? `calc(100% - ${drawerWidth}px)` : '100%'
+          },
           mt: '64px', // AppBar height
+          transition: 'width 0.3s ease',
         }}
       >
         {children}

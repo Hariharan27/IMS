@@ -144,10 +144,13 @@ const AlertManagement: React.FC = () => {
     setViewDialogOpen(true);
   };
 
+  // Handler functions commented out since buttons are hidden
+  /*
   const handleCreateAlert = () => {
     reset();
     setCreateDialogOpen(true);
   };
+  */
 
   const handleCloseCreateDialog = () => {
     setCreateDialogOpen(false);
@@ -222,6 +225,7 @@ const AlertManagement: React.FC = () => {
     }
   };
 
+  /*
   const handleGenerateAlerts = async () => {
     try {
       setError(null);
@@ -238,6 +242,7 @@ const AlertManagement: React.FC = () => {
       setError('Failed to generate alerts');
     }
   };
+  */
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -349,7 +354,8 @@ const AlertManagement: React.FC = () => {
               Monitor and manage system alerts and notifications
             </Typography>
           </Box>
-          <Box display="flex" gap={2}>
+          {/* Buttons hidden as requested */}
+          {/* <Box display="flex" gap={2}>
             <Button
               variant="outlined"
               startIcon={<Refresh />}
@@ -364,7 +370,7 @@ const AlertManagement: React.FC = () => {
             >
               Create Alert
             </Button>
-          </Box>
+          </Box> */}
         </Box>
 
         {/* Error/Success Alerts */}
