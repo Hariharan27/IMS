@@ -54,6 +54,8 @@ const MetricsCard: React.FC<MetricsCardProps> = ({ metric, loading = false, onCl
         return <TrendingUp sx={{ color: 'success.main', fontSize: 16 }} />;
       case 'decrease':
         return <TrendingDown sx={{ color: 'error.main', fontSize: 16 }} />;
+      case 'stable':
+        return <Remove sx={{ color: 'text.secondary', fontSize: 16 }} />;
       default:
         return <Remove sx={{ color: 'text.secondary', fontSize: 16 }} />;
     }

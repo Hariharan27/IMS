@@ -1,8 +1,17 @@
+export interface TrendData {
+  change: number;
+  changeType: 'increase' | 'decrease' | 'stable';
+}
+
 export interface DashboardMetrics {
   totalProducts: number;
+  totalProductsTrend?: TrendData;
   lowStockItems: number;
+  lowStockTrend?: TrendData;
   recentOrders: number;
+  recentOrdersTrend?: TrendData;
   totalValue: number;
+  totalValueTrend?: TrendData;
   activeSuppliers: number;
   totalWarehouses: number;
   pendingOrders: number;
@@ -14,7 +23,7 @@ export interface MetricCard {
   title: string;
   value: number | string;
   change: number;
-  changeType: 'increase' | 'decrease' | 'neutral';
+  changeType: 'increase' | 'decrease' | 'stable';
   icon: string;
   color: string;
   link?: string;
