@@ -173,6 +173,28 @@ public class PurchaseOrderController {
         }
     }
     
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updatePurchaseOrder(
+            @PathVariable Long id,
+            @RequestBody PurchaseOrderRequest request) {
+        log.info("PUT /api/purchase-orders/{} - Updating purchase order", id);
+        try {
+            PurchaseOrderResponse order = purchaseOrderService.updatePurchaseOrder(id, request, 1L); // TODO: Get from JWT
+            return ResponseEntity.ok(new ApiResponse<>(
+                    order,
+                    true,
+                    "Purchase order updated successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error updating purchase order for ID {}: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                    null,
+                    false,
+                    "Error updating purchase order: " + e.getMessage()
+            ));
+        }
+    }
+    
     @PutMapping("/{id}/status")
     public ResponseEntity<?> updatePurchaseOrderStatus(
             @PathVariable Long id,

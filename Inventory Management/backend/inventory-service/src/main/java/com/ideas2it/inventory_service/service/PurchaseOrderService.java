@@ -169,6 +169,77 @@ public class PurchaseOrderService {
         return PurchaseOrderResponse.fromPurchaseOrder(savedOrder);
     }
     
+    public PurchaseOrderResponse updatePurchaseOrder(Long id, PurchaseOrderRequest request, Long currentUserId) {
+        log.info("Updating purchase order with ID: {}", id);
+        
+        PurchaseOrder order = purchaseOrderRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Purchase order not found with ID: " + id));
+        
+        // Only allow updates for DRAFT status
+        if (order.getStatus() != PurchaseOrder.OrderStatus.DRAFT) {
+            throw new RuntimeException("Cannot update purchase order with status: " + order.getStatus() + ". Only DRAFT orders can be updated.");
+        }
+        
+        // Validate supplier exists and is active
+        Supplier supplier = supplierRepository.findById(request.getSupplierId())
+                .orElseThrow(() -> new RuntimeException("Supplier not found with ID: " + request.getSupplierId()));
+        
+        if (!supplier.getIsActive()) {
+            throw new RuntimeException("Supplier is inactive with ID: " + request.getSupplierId());
+        }
+        
+        // Validate warehouse exists and is active
+        Warehouse warehouse = warehouseRepository.findById(request.getWarehouseId())
+                .orElseThrow(() -> new RuntimeException("Warehouse not found with ID: " + request.getWarehouseId()));
+        
+        if (!warehouse.getIsActive()) {
+            throw new RuntimeException("Warehouse is inactive with ID: " + request.getWarehouseId());
+        }
+        
+        // Get current user for audit
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new RuntimeException("Current user not found"));
+        
+        // Update basic information
+        order.setSupplier(supplier);
+        order.setWarehouse(warehouse);
+        order.setOrderDate(request.getOrderDate());
+        order.setExpectedDeliveryDate(request.getExpectedDeliveryDate());
+        order.setNotes(request.getNotes());
+        order.setUpdatedBy(currentUser);
+        
+        // Clear existing items and add new ones
+        order.getItems().clear();
+        
+        // Create and add new items
+        for (PurchaseOrderRequest.PurchaseOrderItemRequest itemRequest : request.getItems()) {
+            // Validate product exists and is active
+            Product product = productRepository.findById(itemRequest.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found with ID: " + itemRequest.getProductId()));
+            
+            if (!product.getIsActive()) {
+                throw new RuntimeException("Product is inactive with ID: " + itemRequest.getProductId());
+            }
+            
+            PurchaseOrderItem item = new PurchaseOrderItem();
+            item.setProduct(product);
+            item.setQuantityOrdered(itemRequest.getQuantityOrdered());
+            item.setUnitPrice(itemRequest.getUnitPrice());
+            item.setNotes(itemRequest.getNotes());
+            item.calculateTotalPrice();
+            
+            order.addItem(item);
+        }
+        
+        // Calculate total amount
+        order.calculateTotalAmount();
+        
+        PurchaseOrder updatedOrder = purchaseOrderRepository.save(order);
+        log.info("Purchase order updated successfully with ID: {}", updatedOrder.getId());
+        
+        return PurchaseOrderResponse.fromPurchaseOrder(updatedOrder);
+    }
+    
     public PurchaseOrderResponse updatePurchaseOrderStatus(Long id, PurchaseOrder.OrderStatus newStatus, Long currentUserId) {
         log.info("Updating purchase order status to: {} for order ID: {}", newStatus, id);
         

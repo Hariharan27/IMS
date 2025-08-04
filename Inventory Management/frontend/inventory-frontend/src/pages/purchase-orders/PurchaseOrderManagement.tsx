@@ -100,8 +100,13 @@ const PurchaseOrderManagement: React.FC = () => {
   const [filterWarehouse, setFilterWarehouse] = useState<string>('all');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [creatingOrder, setCreatingOrder] = useState(false);
+  const [updatingOrder, setUpdatingOrder] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [newStatus, setNewStatus] = useState<PurchaseOrderStatus>('DRAFT');
 
   const {
     control,
@@ -171,6 +176,33 @@ const PurchaseOrderManagement: React.FC = () => {
     setViewDialogOpen(true);
   };
 
+  // Handle edit purchase order
+  const handleEditOrder = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    // Populate form with existing data
+    reset({
+      supplierId: order.supplier.id,
+      warehouseId: order.warehouse.id,
+      orderDate: order.orderDate,
+      expectedDeliveryDate: order.expectedDeliveryDate || '',
+      notes: order.notes || '',
+      items: order.items.map(item => ({
+        productId: item.product.id,
+        quantityOrdered: item.quantityOrdered,
+        unitPrice: item.unitPrice,
+        notes: item.notes || '',
+      })),
+    });
+    setEditDialogOpen(true);
+  };
+
+  // Handle status update dialog
+  const handleStatusUpdateDialog = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setNewStatus(order.status);
+    setStatusDialogOpen(true);
+  };
+
   // Handle submit create order
   const onSubmitCreateOrder = async (data: PurchaseOrderFormData) => {
     try {
@@ -201,15 +233,51 @@ const PurchaseOrderManagement: React.FC = () => {
     }
   };
 
-  // Handle status update
-  const handleStatusUpdate = async (orderId: number, newStatus: PurchaseOrderStatus) => {
+  // Handle submit edit order
+  const onSubmitEditOrder = async (data: PurchaseOrderFormData) => {
+    if (!selectedOrder) return;
+    
     try {
-      const response = await PurchaseOrderService.updatePurchaseOrderStatus(orderId, {
+      setUpdatingOrder(true);
+      const requestData: PurchaseOrderRequest = {
+        supplierId: data.supplierId,
+        warehouseId: data.warehouseId,
+        orderDate: data.orderDate,
+        expectedDeliveryDate: data.expectedDeliveryDate,
+        notes: data.notes,
+        items: data.items,
+      };
+
+      const response = await PurchaseOrderService.updatePurchaseOrder(selectedOrder.id, requestData);
+      
+      if (response.success) {
+        setEditDialogOpen(false);
+        reset();
+        loadData(); // Reload data
+      } else {
+        setError('Failed to update purchase order: ' + response.message);
+      }
+    } catch (err) {
+      console.error('Error updating purchase order:', err);
+      setError('Failed to update purchase order');
+    } finally {
+      setUpdatingOrder(false);
+    }
+  };
+
+  // Handle status update
+  const handleStatusUpdate = async () => {
+    if (!selectedOrder) return;
+    
+    try {
+      setUpdatingStatus(true);
+      const response = await PurchaseOrderService.updatePurchaseOrderStatus(selectedOrder.id, {
         status: newStatus,
         notes: `Status updated to ${newStatus}`,
       });
       
       if (response.success) {
+        setStatusDialogOpen(false);
         loadData(); // Reload data
       } else {
         setError('Failed to update status: ' + response.message);
@@ -217,6 +285,8 @@ const PurchaseOrderManagement: React.FC = () => {
     } catch (err) {
       console.error('Error updating status:', err);
       setError('Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -494,12 +564,21 @@ const PurchaseOrderManagement: React.FC = () => {
                               <IconButton
                                 size="small"
                                 color="warning"
-                                onClick={() => handleViewOrder(order)}
+                                onClick={() => handleEditOrder(order)}
                               >
                                 <Edit />
                               </IconButton>
                             </Tooltip>
                           )}
+                          <Tooltip title="Update Status">
+                            <IconButton
+                              size="small"
+                              color="info"
+                              onClick={() => handleStatusUpdateDialog(order)}
+                            >
+                              <CheckCircle />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -858,11 +937,304 @@ const PurchaseOrderManagement: React.FC = () => {
             <Button onClick={() => setViewDialogOpen(false)}>
               Close
             </Button>
+                     </DialogActions>
+         </Dialog>
+
+        {/* Edit Purchase Order Dialog */}
+        <Dialog 
+          open={editDialogOpen} 
+          onClose={() => setEditDialogOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+        >
+          <DialogTitle>
+            Edit Purchase Order
+            {selectedOrder && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {selectedOrder.poNumber}
+              </Typography>
+            )}
+          </DialogTitle>
+          <form onSubmit={handleSubmit(onSubmitEditOrder)}>
+            <DialogContent>
+              <Grid container spacing={3}>
+                {/* Basic Information */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" sx={{ mb: 2 }}>
+                    Basic Information
+                  </Typography>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Controller
+                    name="supplierId"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.supplierId}>
+                        <InputLabel>Supplier</InputLabel>
+                        <Select {...field} label="Supplier">
+                          {suppliers.map((supplier) => (
+                            <MenuItem key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Controller
+                    name="warehouseId"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.warehouseId}>
+                        <InputLabel>Warehouse</InputLabel>
+                        <Select {...field} label="Warehouse">
+                          {warehouses.map((warehouse) => (
+                            <MenuItem key={warehouse.id} value={warehouse.id}>
+                              {warehouse.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Controller
+                    name="orderDate"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Order Date"
+                        type="date"
+                        fullWidth
+                        error={!!errors.orderDate}
+                        helperText={errors.orderDate?.message}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Controller
+                    name="expectedDeliveryDate"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Expected Delivery Date"
+                        type="date"
+                        fullWidth
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    )}
+                  />
+                </Grid>
+                
+                <Grid item xs={12}>
+                  <Controller
+                    name="notes"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Notes"
+                        multiline
+                        rows={3}
+                        fullWidth
+                      />
+                    )}
+                  />
+                </Grid>
+
+                {/* Items */}
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      Order Items
+                    </Typography>
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      size="small"
+                      onClick={addItem}
+                    >
+                      Add Item
+                    </Button>
+                  </Box>
+                </Grid>
+
+                {fields.map((field, index) => (
+                  <Grid item xs={12} key={field.id}>
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Grid container spacing={2} alignItems="center">
+                          <Grid item xs={12} sm={4}>
+                            <Controller
+                              name={`items.${index}.productId`}
+                              control={control}
+                              render={({ field }) => (
+                                <FormControl fullWidth error={!!errors.items?.[index]?.productId}>
+                                  <InputLabel>Product</InputLabel>
+                                  <Select {...field} label="Product">
+                                    {products.map((product) => (
+                                      <MenuItem key={product.id} value={product.id}>
+                                        {product.name} ({product.sku})
+                                      </MenuItem>
+                                    ))}
+                                  </Select>
+                                </FormControl>
+                              )}
+                            />
+                          </Grid>
+                          
+                          <Grid item xs={12} sm={2}>
+                            <Controller
+                              name={`items.${index}.quantityOrdered`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  label="Quantity"
+                                  type="number"
+                                  fullWidth
+                                  error={!!errors.items?.[index]?.quantityOrdered}
+                                  helperText={errors.items?.[index]?.quantityOrdered?.message}
+                                />
+                              )}
+                            />
+                          </Grid>
+                          
+                          <Grid item xs={12} sm={2}>
+                            <Controller
+                              name={`items.${index}.unitPrice`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  label="Unit Price"
+                                  type="number"
+                                  fullWidth
+                                  error={!!errors.items?.[index]?.unitPrice}
+                                  helperText={errors.items?.[index]?.unitPrice?.message}
+                                />
+                              )}
+                            />
+                          </Grid>
+                          
+                          <Grid item xs={12} sm={3}>
+                            <Controller
+                              name={`items.${index}.notes`}
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  label="Notes"
+                                  fullWidth
+                                />
+                              )}
+                            />
+                          </Grid>
+                          
+                          <Grid item xs={12} sm={1}>
+                            <IconButton
+                              onClick={() => removeItem(index)}
+                              disabled={fields.length === 1}
+                              color="error"
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Grid>
+                        </Grid>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={updatingOrder}
+              >
+                {updatingOrder ? <CircularProgress size={20} /> : 'Update Order'}
+              </Button>
+            </DialogActions>
+          </form>
+        </Dialog>
+
+        {/* Status Update Dialog */}
+        <Dialog 
+          open={statusDialogOpen} 
+          onClose={() => setStatusDialogOpen(false)} 
+          maxWidth="sm" 
+          fullWidth
+        >
+          <DialogTitle>
+            Update Purchase Order Status
+            {selectedOrder && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {selectedOrder.poNumber}
+              </Typography>
+            )}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>New Status</InputLabel>
+                <Select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value as PurchaseOrderStatus)}
+                  label="New Status"
+                >
+                  <MenuItem value="DRAFT">Draft</MenuItem>
+                  <MenuItem value="SUBMITTED">Submitted</MenuItem>
+                  <MenuItem value="APPROVED">Approved</MenuItem>
+                  <MenuItem value="ORDERED">Ordered</MenuItem>
+                  <MenuItem value="PARTIALLY_RECEIVED">Partially Received</MenuItem>
+                  <MenuItem value="FULLY_RECEIVED">Fully Received</MenuItem>
+                  <MenuItem value="CANCELLED">Cancelled</MenuItem>
+                  <MenuItem value="CLOSED">Closed</MenuItem>
+                </Select>
+              </FormControl>
+              
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Current Status: <Chip 
+                    label={selectedOrder?.status.replace('_', ' ')} 
+                    color={getStatusColor(selectedOrder?.status || 'DRAFT') as any}
+                    size="small"
+                  />
+                </Typography>
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setStatusDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStatusUpdate}
+              variant="contained"
+              disabled={updatingStatus}
+            >
+              {updatingStatus ? <CircularProgress size={20} /> : 'Update Status'}
+            </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-    </MainLayout>
-  );
-};
+       </Box>
+     </MainLayout>
+   );
+ };
 
 export default PurchaseOrderManagement; 

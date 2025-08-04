@@ -65,6 +65,12 @@ class PurchaseOrderService {
     return response.data;
   }
 
+  // Update existing purchase order
+  async updatePurchaseOrder(id: number, data: PurchaseOrderRequest): Promise<PurchaseOrderResponse> {
+    const response = await api.put(`/purchase-orders/${id}`, data);
+    return response.data;
+  }
+
   // Update purchase order status
   async updatePurchaseOrderStatus(
     id: number, 
