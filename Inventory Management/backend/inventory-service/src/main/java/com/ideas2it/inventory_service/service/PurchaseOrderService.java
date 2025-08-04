@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,6 +32,7 @@ public class PurchaseOrderService {
     private final UserRepository userRepository;
     private final InventoryService inventoryService;
     private final StockMovementService stockMovementService;
+    private final InventoryRepository inventoryRepository;
     
     public List<PurchaseOrderResponse> getAllPurchaseOrders() {
         log.info("Fetching all purchase orders");
@@ -264,8 +266,11 @@ public class PurchaseOrderService {
         return PurchaseOrderResponse.fromPurchaseOrder(updatedOrder);
     }
     
+    @Transactional
     public PurchaseOrderResponse receivePurchaseOrder(Long id, List<ReceiveItemRequest> receiveItems, Long currentUserId) {
+        log.info("=== RECEIVE PURCHASE ORDER START ===");
         log.info("Receiving items for purchase order ID: {}", id);
+        log.info("Number of items to receive: {}", receiveItems.size());
         
         PurchaseOrder order = purchaseOrderRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Purchase order not found with ID: " + id));
@@ -291,11 +296,19 @@ public class PurchaseOrderService {
                 throw new RuntimeException("Cannot receive more than ordered quantity for item ID: " + item.getId());
             }
             
-            // Update item
-            item.receiveQuantity(receiveItem.getQuantityReceived());
+            // Store the quantity to add BEFORE updating the item
+            int quantityToAdd = receiveItem.getQuantityReceived();
+            int currentReceived = item.getQuantityReceived();
             
-            // Update inventory
-            updateInventoryForReceivedItem(item, order.getWarehouse().getId(), currentUserId, receiveItem.getNotes());
+            log.info("=== PROCESSING ITEM {} ===", receiveItem.getItemId());
+            log.info("Current received: {}, Adding: {}, Will be: {}, Total ordered: {}", 
+                    currentReceived, quantityToAdd, currentReceived + quantityToAdd, item.getQuantityOrdered());
+            
+            // Update item
+            item.receiveQuantity(quantityToAdd);
+            
+            // Update inventory with the CORRECT quantity to add
+            updateInventoryForReceivedItem(item, order.getWarehouse().getId(), currentUserId, receiveItem.getNotes(), quantityToAdd);
         }
         
         // Check if all items are fully received
@@ -309,55 +322,34 @@ public class PurchaseOrderService {
         order.setUpdatedBy(currentUser);
         
         PurchaseOrder updatedOrder = purchaseOrderRepository.save(order);
+        log.info("=== RECEIVE PURCHASE ORDER END ===");
         log.info("Purchase order items received successfully");
         
         return PurchaseOrderResponse.fromPurchaseOrder(updatedOrder);
     }
     
-    private void updateInventoryForReceivedItem(PurchaseOrderItem item, Long warehouseId, Long currentUserId, String notes) {
-        // Create inventory update request
-        com.ideas2it.inventory_service.dto.InventoryRequest inventoryRequest = new com.ideas2it.inventory_service.dto.InventoryRequest();
-        inventoryRequest.setProductId(item.getProduct().getId());
-        inventoryRequest.setWarehouseId(warehouseId);
+    private void updateInventoryForReceivedItem(PurchaseOrderItem item, Long warehouseId, Long currentUserId, String notes, int quantityToAdd) {
+        log.info("=== INVENTORY UPDATE DEBUG ===");
+        log.info("Updating inventory for received item: Product ID {}, Warehouse ID {}, Quantity to Add {}", 
+                item.getProduct().getId(), warehouseId, quantityToAdd);
+        log.info("Purchase Order ID: {}, Item ID: {}", item.getPurchaseOrder().getId(), item.getId());
         
-        // Check if inventory exists for this product and warehouse
-        try {
-            com.ideas2it.inventory_service.dto.InventoryResponse existingInventory = inventoryService.getInventoryByProduct(item.getProduct().getId()).stream()
-                    .filter(inv -> inv.getWarehouse().getId().equals(warehouseId))
-                    .findFirst()
-                    .orElse(null);
-            
-            if (existingInventory != null) {
-                // Update existing inventory
-                inventoryRequest.setQuantityOnHand(existingInventory.getQuantityOnHand() + item.getQuantityReceived());
-                inventoryRequest.setQuantityReserved(existingInventory.getQuantityReserved());
-                inventoryService.updateInventory(existingInventory.getId(), inventoryRequest, currentUserId);
-            } else {
-                // Create new inventory
-                inventoryRequest.setQuantityOnHand(item.getQuantityReceived());
-                inventoryRequest.setQuantityReserved(0);
-                inventoryService.createInventory(inventoryRequest, currentUserId);
-            }
-        } catch (Exception e) {
-            log.error("Error updating inventory for received item: {}", e.getMessage());
-            throw new RuntimeException("Failed to update inventory for received item");
-        }
-        
-        // Create stock movement
+        // Create stock movement (this will handle inventory update)
         try {
             com.ideas2it.inventory_service.dto.StockMovementRequest movementRequest = new com.ideas2it.inventory_service.dto.StockMovementRequest();
             movementRequest.setProductId(item.getProduct().getId());
             movementRequest.setWarehouseId(warehouseId);
             movementRequest.setMovementType(StockMovement.MovementType.IN);
-            movementRequest.setQuantity(item.getQuantityReceived());
+            movementRequest.setQuantity(quantityToAdd);
             movementRequest.setReferenceType(StockMovement.ReferenceType.PURCHASE_ORDER);
             movementRequest.setReferenceId(item.getPurchaseOrder().getId());
             movementRequest.setNotes("Received from purchase order " + item.getPurchaseOrder().getPoNumber() + ": " + notes);
             
             stockMovementService.createStockMovement(movementRequest, currentUserId);
+            log.info("Stock movement created and inventory updated successfully for received item");
         } catch (Exception e) {
             log.error("Error creating stock movement for received item: {}", e.getMessage());
-            throw new RuntimeException("Failed to create stock movement for received item");
+            throw new RuntimeException("Failed to create stock movement for received item: " + e.getMessage());
         }
     }
     
@@ -405,6 +397,22 @@ public class PurchaseOrderService {
     public BigDecimal getTotalAmountByStatus(PurchaseOrder.OrderStatus status) {
         BigDecimal total = purchaseOrderRepository.getTotalAmountByStatus(status);
         return total != null ? total : BigDecimal.ZERO;
+    }
+    
+    public void deleteAllPurchaseOrders() {
+        log.info("Deleting all purchase orders");
+        try {
+            // First delete all purchase order items
+            purchaseOrderItemRepository.deleteAll();
+            log.info("Deleted all purchase order items");
+            
+            // Then delete all purchase orders
+            purchaseOrderRepository.deleteAll();
+            log.info("Deleted all purchase orders");
+        } catch (Exception e) {
+            log.error("Error deleting all purchase orders: {}", e.getMessage());
+            throw new RuntimeException("Failed to delete all purchase orders: " + e.getMessage());
+        }
     }
     
     // Helper class for receiving items

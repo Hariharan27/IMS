@@ -86,4 +86,8 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, Lo
     
     // Find orders that are ready for receiving (APPROVED status)
     List<PurchaseOrder> findByStatusAndExpectedDeliveryDateLessThanEqualOrderByExpectedDeliveryDateAsc(PurchaseOrder.OrderStatus status, LocalDate date);
+    
+    // Find orders by supplier and date after (for supplier performance tracking)
+    @Query("SELECT po FROM PurchaseOrder po WHERE po.supplier.id = :supplierId AND po.orderDate >= :startDate ORDER BY po.orderDate DESC")
+    List<PurchaseOrder> findBySupplierIdAndOrderDateAfter(@Param("supplierId") Long supplierId, @Param("startDate") LocalDate startDate);
 } 

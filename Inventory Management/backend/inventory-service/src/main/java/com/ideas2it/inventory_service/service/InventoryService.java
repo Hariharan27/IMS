@@ -171,6 +171,11 @@ public class InventoryService {
                 .collect(Collectors.toList());
     }
     
+    public List<Inventory> getLowStockInventoryEntities() {
+        log.info("Fetching low stock inventory entities");
+        return inventoryRepository.findLowStockInventory();
+    }
+    
     public List<InventoryResponse> getOutOfStockInventory() {
         log.info("Fetching out of stock inventory");
         List<Inventory> outOfStockList = inventoryRepository.findOutOfStockInventory();

@@ -319,6 +319,26 @@ public class PurchaseOrderController {
         }
     }
     
+    @DeleteMapping("/all")
+    public ResponseEntity<?> deleteAllPurchaseOrders() {
+        log.info("DELETE /api/purchase-orders/all - Deleting all purchase orders");
+        try {
+            purchaseOrderService.deleteAllPurchaseOrders();
+            return ResponseEntity.ok(new ApiResponse<>(
+                    null,
+                    true,
+                    "All purchase orders deleted successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error deleting all purchase orders: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                    null,
+                    false,
+                    "Error deleting all purchase orders: " + e.getMessage()
+            ));
+        }
+    }
+    
     // Helper classes for request/response
     public static class ApiResponse<T> {
         private T data;

@@ -327,7 +327,25 @@ public class ProductController {
         }
     }
     
-
+    @DeleteMapping("/all")
+    public ResponseEntity<?> deleteAllProducts() {
+        log.info("DELETE /api/products/all - Deleting all products");
+        try {
+            productService.deleteAllProducts();
+            return ResponseEntity.ok(new ApiResponse<>(
+                    null,
+                    true,
+                    "All products deleted successfully"
+            ));
+        } catch (Exception e) {
+            log.error("Error deleting all products: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(new ApiResponse<>(
+                    null,
+                    false,
+                    "Error deleting all products: " + e.getMessage()
+            ));
+        }
+    }
     
     // Helper class for consistent API responses
     private static class ApiResponse<T> {

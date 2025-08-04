@@ -73,15 +73,30 @@ import type {
 
 // Purchase order form schema
 const purchaseOrderSchema = z.object({
-  supplierId: z.number().min(1, 'Supplier is required'),
-  warehouseId: z.number().min(1, 'Warehouse is required'),
+  supplierId: z.union([z.string(), z.number()]).transform((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }).refine((val) => val && val > 0, 'Supplier is required'),
+  warehouseId: z.union([z.string(), z.number()]).transform((val) => {
+    if (typeof val === 'string') return parseInt(val, 10);
+    return val;
+  }).refine((val) => val && val > 0, 'Warehouse is required'),
   orderDate: z.string().min(1, 'Order date is required'),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
   items: z.array(z.object({
-    productId: z.number().min(1, 'Product is required'),
-    quantityOrdered: z.number().min(1, 'Quantity must be at least 1'),
-    unitPrice: z.number().min(0, 'Unit price must be non-negative'),
+    productId: z.union([z.string(), z.number()]).transform((val) => {
+      if (typeof val === 'string') return parseInt(val, 10);
+      return val;
+    }).refine((val) => val && val > 0, 'Product is required'),
+    quantityOrdered: z.union([z.string(), z.number()]).transform((val) => {
+      if (typeof val === 'string') return parseInt(val, 10);
+      return val;
+    }).refine((val) => val && val > 0, 'Quantity must be at least 1'),
+    unitPrice: z.union([z.string(), z.number()]).transform((val) => {
+      if (typeof val === 'string') return parseFloat(val);
+      return val;
+    }).refine((val) => val >= 0, 'Unit price must be non-negative'),
     notes: z.string().optional(),
   })).min(1, 'At least one item is required'),
 });
@@ -108,6 +123,11 @@ const PurchaseOrderManagement: React.FC = () => {
   const [updatingOrder, setUpdatingOrder] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [newStatus, setNewStatus] = useState<PurchaseOrderStatus>('DRAFT');
+  
+  // State for receive items dialog
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
+  const [receiveItems, setReceiveItems] = useState<Array<{itemId: number, quantityReceived: number, notes: string}>>([]);
+  const [receivingItems, setReceivingItems] = useState(false);
 
   const {
     control,
@@ -118,10 +138,10 @@ const PurchaseOrderManagement: React.FC = () => {
   } = useForm<PurchaseOrderFormData>({
     resolver: zodResolver(purchaseOrderSchema),
     defaultValues: {
-      supplierId: 0,
-      warehouseId: 0,
+      supplierId: '',
+      warehouseId: '',
       orderDate: new Date().toISOString().split('T')[0],
-      items: [{ productId: 0, quantityOrdered: 1, unitPrice: 0 }],
+      items: [{ productId: '', quantityOrdered: 1, unitPrice: 0 }],
     },
   });
 
@@ -145,13 +165,43 @@ const PurchaseOrderManagement: React.FC = () => {
         setPurchaseOrders(ordersResponse.data);
       }
       if (productsResponse.success) {
-        setProducts(productsResponse.data);
+        // Handle both paginated and direct array responses
+        const productsData = productsResponse.data;
+        if (Array.isArray(productsData)) {
+          setProducts(productsData);
+        } else if (productsData && typeof productsData === 'object' && 'content' in productsData) {
+          // Paginated response
+          setProducts(productsData.content);
+        } else {
+          console.error('Unexpected products data structure:', productsData);
+          setProducts([]);
+        }
       }
       if (suppliersResponse.success) {
-        setSuppliers(suppliersResponse.data);
+        // Handle both paginated and direct array responses
+        const suppliersData = suppliersResponse.data;
+        if (Array.isArray(suppliersData)) {
+          setSuppliers(suppliersData);
+        } else if (suppliersData && typeof suppliersData === 'object' && 'content' in suppliersData) {
+          // Paginated response
+          setSuppliers(suppliersData.content);
+        } else {
+          console.error('Unexpected suppliers data structure:', suppliersData);
+          setSuppliers([]);
+        }
       }
       if (warehousesResponse.success) {
-        setWarehouses(warehousesResponse.data);
+        // Handle both paginated and direct array responses
+        const warehousesData = warehousesResponse.data;
+        if (Array.isArray(warehousesData)) {
+          setWarehouses(warehousesData);
+        } else if (warehousesData && typeof warehousesData === 'object' && 'content' in warehousesData) {
+          // Paginated response
+          setWarehouses(warehousesData.content);
+        } else {
+          console.error('Unexpected warehouses data structure:', warehousesData);
+          setWarehouses([]);
+        }
       }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -202,6 +252,18 @@ const PurchaseOrderManagement: React.FC = () => {
     setSelectedOrder(order);
     setNewStatus(order.status);
     setStatusDialogOpen(true);
+  };
+  
+  const handleReceiveDialog = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    // Initialize receive items with ordered quantities
+    const initialReceiveItems = order.items.map(item => ({
+      itemId: item.id,
+      quantityReceived: item.quantityOrdered, // Default to full quantity
+      notes: ''
+    }));
+    setReceiveItems(initialReceiveItems);
+    setReceiveDialogOpen(true);
   };
 
   // Get valid status transitions for an order
@@ -295,6 +357,8 @@ const PurchaseOrderManagement: React.FC = () => {
     
     try {
       setUpdatingStatus(true);
+      
+      // For status changes, use the regular status update
       const response = await PurchaseOrderService.updatePurchaseOrderStatus(selectedOrder.id, {
         status: newStatus,
         notes: `Status updated to ${newStatus}`,
@@ -311,6 +375,50 @@ const PurchaseOrderManagement: React.FC = () => {
       setError('Failed to update status');
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+  
+  // Handle receiving items
+  const handleReceiveItems = async () => {
+    if (!selectedOrder) return;
+    
+    // Prevent multiple simultaneous calls
+    if (receivingItems) {
+      console.log('Receive process already in progress, ignoring duplicate call');
+      return;
+    }
+    
+    try {
+      setReceivingItems(true);
+      
+      console.log('=== FRONTEND RECEIVE DEBUG ===');
+      console.log('Starting receive process for PO:', selectedOrder.id);
+      console.log('Current status:', selectedOrder.status);
+      console.log('Items to receive:', receiveItems);
+      
+      // Check if the order is in APPROVED status first
+      if (selectedOrder.status !== 'APPROVED') {
+        setError('Purchase order must be in APPROVED status before receiving items. Please approve the order first.');
+        return;
+      }
+      
+      console.log('Calling receivePurchaseOrder API...');
+      const response = await PurchaseOrderService.receivePurchaseOrder(selectedOrder.id, {
+        receivedItems: receiveItems
+      });
+      console.log('API response received:', response);
+      
+      if (response.success) {
+        setReceiveDialogOpen(false);
+        loadData(); // Reload data
+      } else {
+        setError('Failed to receive items: ' + response.message);
+      }
+    } catch (err) {
+      console.error('Error receiving items:', err);
+      setError('Failed to receive items');
+    } finally {
+      setReceivingItems(false);
     }
   };
 
@@ -472,7 +580,7 @@ const PurchaseOrderManagement: React.FC = () => {
                     label="Supplier"
                   >
                     <MenuItem value="all">All Suppliers</MenuItem>
-                    {suppliers.map((supplier) => (
+                    {Array.isArray(suppliers) && suppliers.map((supplier) => (
                       <MenuItem key={supplier.id} value={supplier.id.toString()}>
                         {supplier.name}
                       </MenuItem>
@@ -489,7 +597,7 @@ const PurchaseOrderManagement: React.FC = () => {
                     label="Warehouse"
                   >
                     <MenuItem value="all">All Warehouses</MenuItem>
-                    {warehouses.map((warehouse) => (
+                    {Array.isArray(warehouses) && warehouses.map((warehouse) => (
                       <MenuItem key={warehouse.id} value={warehouse.id.toString()}>
                         {warehouse.name}
                       </MenuItem>
@@ -605,6 +713,17 @@ const PurchaseOrderManagement: React.FC = () => {
                               </IconButton>
                             </Tooltip>
                           )}
+                          {order.status === 'APPROVED' && (
+                            <Tooltip title="Receive Items">
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => handleReceiveDialog(order)}
+                              >
+                                <LocalShipping />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -630,6 +749,10 @@ const PurchaseOrderManagement: React.FC = () => {
           maxWidth="md" 
           fullWidth
         >
+          {/* Debug info */}
+          <div style={{ display: 'none' }}>
+            Dialog open: {createDialogOpen.toString()}
+          </div>
           <DialogTitle>
             Create Purchase Order
           </DialogTitle>
@@ -651,7 +774,7 @@ const PurchaseOrderManagement: React.FC = () => {
                       <FormControl fullWidth error={!!errors.supplierId}>
                         <InputLabel>Supplier</InputLabel>
                         <Select {...field} label="Supplier">
-                          {suppliers.map((supplier) => (
+                          {Array.isArray(suppliers) && suppliers.map((supplier) => (
                             <MenuItem key={supplier.id} value={supplier.id}>
                               {supplier.name}
                             </MenuItem>
@@ -670,7 +793,7 @@ const PurchaseOrderManagement: React.FC = () => {
                       <FormControl fullWidth error={!!errors.warehouseId}>
                         <InputLabel>Warehouse</InputLabel>
                         <Select {...field} label="Warehouse">
-                          {warehouses.map((warehouse) => (
+                          {Array.isArray(warehouses) && warehouses.map((warehouse) => (
                             <MenuItem key={warehouse.id} value={warehouse.id}>
                               {warehouse.name}
                             </MenuItem>
@@ -761,7 +884,7 @@ const PurchaseOrderManagement: React.FC = () => {
                                 <FormControl fullWidth error={!!errors.items?.[index]?.productId}>
                                   <InputLabel>Product</InputLabel>
                                   <Select {...field} label="Product">
-                                    {products.map((product) => (
+                                    {Array.isArray(products) && products.map((product) => (
                                       <MenuItem key={product.id} value={product.id}>
                                         {product.name} ({product.sku})
                                       </MenuItem>
@@ -999,7 +1122,7 @@ const PurchaseOrderManagement: React.FC = () => {
                       <FormControl fullWidth error={!!errors.supplierId}>
                         <InputLabel>Supplier</InputLabel>
                         <Select {...field} label="Supplier">
-                          {suppliers.map((supplier) => (
+                          {Array.isArray(suppliers) && suppliers.map((supplier) => (
                             <MenuItem key={supplier.id} value={supplier.id}>
                               {supplier.name}
                             </MenuItem>
@@ -1018,7 +1141,7 @@ const PurchaseOrderManagement: React.FC = () => {
                       <FormControl fullWidth error={!!errors.warehouseId}>
                         <InputLabel>Warehouse</InputLabel>
                         <Select {...field} label="Warehouse">
-                          {warehouses.map((warehouse) => (
+                          {Array.isArray(warehouses) && warehouses.map((warehouse) => (
                             <MenuItem key={warehouse.id} value={warehouse.id}>
                               {warehouse.name}
                             </MenuItem>
@@ -1258,6 +1381,87 @@ const PurchaseOrderManagement: React.FC = () => {
               disabled={updatingStatus || (selectedOrder && getValidStatusTransitions(selectedOrder.status).length === 0)}
             >
               {updatingStatus ? <CircularProgress size={20} /> : 'Update Status'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Receive Items Dialog */}
+        <Dialog 
+          open={receiveDialogOpen} 
+          onClose={() => setReceiveDialogOpen(false)} 
+          maxWidth="md" 
+          fullWidth
+        >
+          <DialogTitle>
+            Receive Items
+            {selectedOrder && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {selectedOrder.poNumber}
+              </Typography>
+            )}
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Specify the quantity received for each item:
+              </Typography>
+              
+              {receiveItems.map((item, index) => {
+                const orderItem = selectedOrder?.items.find(oi => oi.id === item.itemId);
+                return (
+                  <Card key={item.itemId} sx={{ mb: 2, p: 2 }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={4}>
+                        <Typography variant="subtitle2">
+                          {orderItem?.product.name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          Ordered: {orderItem?.quantityOrdered} units
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={3}>
+                        <TextField
+                          label="Quantity Received"
+                          type="number"
+                          value={item.quantityReceived}
+                          onChange={(e) => {
+                            const newItems = [...receiveItems];
+                            newItems[index].quantityReceived = parseInt(e.target.value) || 0;
+                            setReceiveItems(newItems);
+                          }}
+                          inputProps={{ min: 0, max: orderItem?.quantityOrdered }}
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={5}>
+                        <TextField
+                          label="Notes"
+                          value={item.notes}
+                          onChange={(e) => {
+                            const newItems = [...receiveItems];
+                            newItems[index].notes = e.target.value;
+                            setReceiveItems(newItems);
+                          }}
+                          fullWidth
+                        />
+                      </Grid>
+                    </Grid>
+                  </Card>
+                );
+              })}
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setReceiveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReceiveItems}
+              variant="contained"
+              color="success"
+              disabled={receivingItems}
+            >
+              {receivingItems ? <CircularProgress size={20} /> : 'Receive Items'}
             </Button>
           </DialogActions>
         </Dialog>

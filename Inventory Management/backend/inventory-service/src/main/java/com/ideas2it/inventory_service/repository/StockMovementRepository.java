@@ -66,4 +66,8 @@ public interface StockMovementRepository extends JpaRepository<StockMovement, Lo
     // Get total quantity moved by warehouse and movement type
     @Query("SELECT SUM(sm.quantity) FROM StockMovement sm WHERE sm.warehouse.id = :warehouseId AND sm.movementType = :movementType")
     Integer getTotalQuantityByWarehouseAndMovementType(@Param("warehouseId") Long warehouseId, @Param("movementType") StockMovement.MovementType movementType);
+    
+    // Find movements by product, date after, and movement type (for demand analysis)
+    @Query("SELECT sm FROM StockMovement sm WHERE sm.product.id = :productId AND sm.movementDate >= :startDate AND sm.movementType = :movementType ORDER BY sm.movementDate DESC")
+    List<StockMovement> findByProductIdAndMovementDateAfterAndMovementType(@Param("productId") Long productId, @Param("startDate") LocalDateTime startDate, @Param("movementType") StockMovement.MovementType movementType);
 } 

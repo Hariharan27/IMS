@@ -9,6 +9,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import com.ideas2it.inventory_service.entity.Inventory;
 
 @RestController
 @RequestMapping("/api/inventory")
@@ -148,12 +152,29 @@ public class InventoryController {
     public ResponseEntity<?> getLowStockInventory() {
         log.info("GET /api/inventory/low-stock - Fetching low stock inventory");
         try {
-            List<InventoryResponse> inventory = inventoryService.getLowStockInventory();
+            List<Inventory> lowStockInventory = inventoryService.getLowStockInventoryEntities();
+            List<Map<String, Object>> response = new ArrayList<>();
+            
+            for (Inventory inventory : lowStockInventory) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("productId", inventory.getProduct().getId());
+                item.put("productName", inventory.getProduct().getName());
+                item.put("sku", inventory.getProduct().getSku());
+                item.put("warehouseId", inventory.getWarehouse().getId());
+                item.put("warehouseName", inventory.getWarehouse().getName());
+                item.put("quantityAvailable", inventory.getQuantityAvailable());
+                item.put("quantityOnHand", inventory.getQuantityOnHand());
+                item.put("reorderPoint", inventory.getProduct().getReorderPoint());
+                item.put("suggestedQuantity", inventory.getProduct().getReorderQuantity());
+                
+                response.add(item);
+            }
+            
             return ResponseEntity.ok(new ApiResponse<>(
-                    inventory,
+                    response,
                     true,
                     "Low stock inventory retrieved successfully",
-                    inventory.size()
+                    response.size()
             ));
         } catch (Exception e) {
             log.error("Error fetching low stock inventory: {}", e.getMessage());

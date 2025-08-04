@@ -32,6 +32,7 @@ import {
   Logout,
   Settings,
   Warehouse,
+  AutoAwesome,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -105,6 +106,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       text: 'Purchase Orders',
       icon: <ShoppingCart />,
       path: '/purchase-orders',
+      roles: ['ADMIN', 'MANAGER'],
+    },
+    {
+      text: 'Automated POs',
+      icon: <AutoAwesome />,
+      path: '/automated-purchase-orders',
       roles: ['ADMIN', 'MANAGER'],
     },
     {

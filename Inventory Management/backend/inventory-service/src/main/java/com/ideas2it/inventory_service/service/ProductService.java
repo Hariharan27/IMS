@@ -2,20 +2,26 @@ package com.ideas2it.inventory_service.service;
 
 import com.ideas2it.inventory_service.dto.ProductRequest;
 import com.ideas2it.inventory_service.dto.ProductResponse;
+import com.ideas2it.inventory_service.dto.PurchaseOrderRequest;
 import com.ideas2it.inventory_service.entity.Category;
 import com.ideas2it.inventory_service.entity.Product;
 import com.ideas2it.inventory_service.entity.Supplier;
 import com.ideas2it.inventory_service.entity.User;
+import com.ideas2it.inventory_service.entity.Warehouse;
+import com.ideas2it.inventory_service.entity.Inventory;
 import com.ideas2it.inventory_service.repository.CategoryRepository;
 import com.ideas2it.inventory_service.repository.ProductRepository;
 import com.ideas2it.inventory_service.repository.SupplierRepository;
 import com.ideas2it.inventory_service.repository.UserRepository;
+import com.ideas2it.inventory_service.repository.WarehouseRepository;
+import com.ideas2it.inventory_service.repository.InventoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,6 +34,9 @@ public class ProductService {
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final UserRepository userRepository;
+    private final WarehouseRepository warehouseRepository;
+    private final InventoryRepository inventoryRepository;
+    private final PurchaseOrderService purchaseOrderService;
     
     public List<ProductResponse> getAllProducts() {
         log.info("Fetching all active products");
@@ -136,6 +145,12 @@ public class ProductService {
         Product savedProduct = productRepository.save(product);
         log.info("Product created successfully with ID: {}", savedProduct.getId());
         
+        // Automatically create inventory records for all active warehouses
+        createInventoryForAllWarehouses(savedProduct, currentUser);
+        
+        // Automatically generate purchase order for new product
+        generateInitialPurchaseOrder(savedProduct, currentUser);
+        
         return ProductResponse.fromProduct(savedProduct);
     }
     
@@ -240,5 +255,136 @@ public class ProductService {
         return productRepository.countByCategoryIdAndIsActiveTrue(categoryId);
     }
     
-
+    public void deleteAllProducts() {
+        log.info("Deleting all products");
+        try {
+            // First delete all inventory records
+            inventoryRepository.deleteAll();
+            log.info("Deleted all inventory records");
+            
+            // Then delete all products
+            productRepository.deleteAll();
+            log.info("Deleted all products");
+        } catch (Exception e) {
+            log.error("Error deleting all products: {}", e.getMessage());
+            throw new RuntimeException("Failed to delete all products: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Automatically create inventory records for all active warehouses when a product is created
+     */
+    private void createInventoryForAllWarehouses(Product product, User currentUser) {
+        log.info("Creating inventory records for product '{}' in all active warehouses", product.getName());
+        
+        // Get all active warehouses
+        List<Warehouse> activeWarehouses = warehouseRepository.findByIsActiveTrue();
+        
+        if (activeWarehouses.isEmpty()) {
+            log.warn("No active warehouses found. Cannot create inventory records for product: {}", product.getName());
+            return;
+        }
+        
+        // Create inventory records for each warehouse
+        for (Warehouse warehouse : activeWarehouses) {
+            try {
+                // Check if inventory already exists for this product-warehouse combination
+                Optional<Inventory> existingInventory = inventoryRepository.findByProductIdAndWarehouseId(product.getId(), warehouse.getId());
+                if (existingInventory.isEmpty()) {
+                    Inventory inventory = new Inventory();
+                    inventory.setProduct(product);
+                    inventory.setWarehouse(warehouse);
+                    inventory.setQuantityOnHand(0);
+                    inventory.setQuantityReserved(0);
+                    inventory.setQuantityAvailable(0);
+                    inventory.setUpdatedBy(currentUser);
+                    
+                    log.info("=== CREATING INVENTORY DEBUG ===");
+                    log.info("Creating inventory for product '{}' in warehouse '{}' with quantity: {}", 
+                            product.getName(), warehouse.getName(), inventory.getQuantityOnHand());
+                    
+                    Inventory savedInventory = inventoryRepository.save(inventory);
+                    log.info("Created inventory record for product '{}' in warehouse '{}' with ID: {} and quantity: {}", 
+                            product.getName(), warehouse.getName(), savedInventory.getId(), savedInventory.getQuantityOnHand());
+                } else {
+                    log.info("Inventory record already exists for product '{}' in warehouse '{}'", 
+                            product.getName(), warehouse.getName());
+                }
+            } catch (Exception e) {
+                log.error("Error creating inventory record for product '{}' in warehouse '{}': {}", 
+                        product.getName(), warehouse.getName(), e.getMessage());
+                // Continue with other warehouses even if one fails
+            }
+        }
+        
+        log.info("Completed inventory creation for product '{}' across {} warehouses", 
+                product.getName(), activeWarehouses.size());
+    }
+    
+    /**
+     * Automatically generate initial purchase order for new product
+     */
+    private void generateInitialPurchaseOrder(Product product, User currentUser) {
+        log.info("Generating initial purchase order for new product: {}", product.getName());
+        
+        try {
+            // Find best supplier for this product
+            List<Supplier> activeSuppliers = supplierRepository.findByIsActiveTrue();
+            if (activeSuppliers.isEmpty()) {
+                log.warn("No active suppliers found. Cannot generate initial PO for product: {}", product.getName());
+                return;
+            }
+            
+            Supplier bestSupplier = activeSuppliers.get(0); // For now, use first supplier
+            
+            // Get all active warehouses
+            List<Warehouse> activeWarehouses = warehouseRepository.findByIsActiveTrue();
+            if (activeWarehouses.isEmpty()) {
+                log.warn("No active warehouses found. Cannot generate initial PO for product: {}", product.getName());
+                return;
+            }
+            
+            // Create initial PO for each warehouse
+            for (Warehouse warehouse : activeWarehouses) {
+                try {
+                    // Calculate initial order quantity
+                    int initialQuantity = product.getReorderQuantity() != null ? product.getReorderQuantity() : 10;
+                    
+                    // Create PO request
+                    PurchaseOrderRequest poRequest = new PurchaseOrderRequest();
+                    poRequest.setSupplierId(bestSupplier.getId());
+                    poRequest.setWarehouseId(warehouse.getId());
+                    poRequest.setOrderDate(java.time.LocalDate.now());
+                    poRequest.setExpectedDeliveryDate(java.time.LocalDate.now().plusDays(7));
+                    poRequest.setNotes("Initial stock order for new product: " + product.getName());
+                    
+                    // Create PO item
+                    PurchaseOrderRequest.PurchaseOrderItemRequest itemRequest = new PurchaseOrderRequest.PurchaseOrderItemRequest();
+                    itemRequest.setProductId(product.getId());
+                    itemRequest.setQuantityOrdered(initialQuantity);
+                    itemRequest.setUnitPrice(product.getCostPrice() != null ? product.getCostPrice() : java.math.BigDecimal.ZERO);
+                    itemRequest.setNotes("Initial stock for new product");
+                    
+                    poRequest.setItems(java.util.Arrays.asList(itemRequest));
+                    
+                    // Create the PO using PurchaseOrderService
+                    purchaseOrderService.createPurchaseOrder(poRequest, currentUser.getId());
+                    
+                    log.info("Generated initial PO for product '{}' in warehouse '{}': {} units", 
+                            product.getName(), warehouse.getName(), initialQuantity);
+                            
+                } catch (Exception e) {
+                    log.error("Error generating initial PO for product '{}' in warehouse '{}': {}", 
+                            product.getName(), warehouse.getName(), e.getMessage());
+                }
+            }
+            
+            log.info("Completed initial PO generation for product '{}' across {} warehouses", 
+                    product.getName(), activeWarehouses.size());
+                    
+        } catch (Exception e) {
+            log.error("Error in generateInitialPurchaseOrder for product '{}': {}", 
+                    product.getName(), e.getMessage());
+        }
+    }
 } 
