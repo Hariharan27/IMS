@@ -12,6 +12,7 @@ import ProductManagement from './pages/products/ProductManagement';
 import CategoryManagement from './pages/categories/CategoryManagement';
 import InventoryManagement from './pages/inventory/InventoryManagement';
 import PurchaseOrderManagement from './pages/purchase-orders/PurchaseOrderManagement';
+import SupplierManagement from './pages/suppliers/SupplierManagement';
 import AlertManagement from './pages/alerts/AlertManagement';
 import UserManagement from './pages/users/UserManagement';
 import UserProfile from './pages/users/UserProfile';
@@ -104,6 +105,15 @@ const AppContent: React.FC = () => {
           element={
             <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
               <PurchaseOrderManagement />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/suppliers" 
+          element={
+            <ProtectedRoute requiredRoles={['ADMIN', 'MANAGER']}>
+              <SupplierManagement />
             </ProtectedRoute>
           } 
         />
